@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NetAntenna.Core.Data;
 using NetAntenna.Core.Services;
 using NetAntenna.Desktop.ViewModels;
@@ -50,6 +51,12 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+
         // Phase 2 Core Services
         services.AddHttpClient<IFccDataService, FccDataService>();
         services.AddHttpClient<INwsWeatherService, NwsWeatherService>();

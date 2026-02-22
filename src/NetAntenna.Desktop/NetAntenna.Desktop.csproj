@@ -27,6 +27,7 @@
     <PackageReference Include="Mapsui.Avalonia" Version="5.0.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.3" />
     <PackageReference Include="ScottPlot.Avalonia" Version="5.1.57" />
   </ItemGroup>
 
