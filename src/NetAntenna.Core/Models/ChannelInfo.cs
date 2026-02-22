@@ -16,6 +16,26 @@ public sealed class ChannelInfo
     [JsonPropertyName("URL")]
     public string Url { get; set; } = string.Empty;
 
+    [JsonPropertyName("VideoCodec")]
+    public string? VideoCodec { get; set; }
+
+    [JsonPropertyName("AudioCodec")]
+    public string? AudioCodec { get; set; }
+
+    [JsonPropertyName("HD")]
+    public int? HD { get; set; }
+
+    [JsonPropertyName("DRM")]
+    public int? DRM { get; set; }
+
+    /// <summary>Signal Strength (0-100) as reported directly by the lineup endpoint.</summary>
+    [JsonPropertyName("SignalStrength")]
+    public int? SignalStrength { get; set; }
+
+    /// <summary>Signal Quality (0-100) as reported directly by the lineup endpoint.</summary>
+    [JsonPropertyName("SignalQuality")]
+    public int? SignalQuality { get; set; }
+
     [JsonPropertyName("Tags")]
     public string? Tags { get; set; }
 

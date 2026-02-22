@@ -40,8 +40,8 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
     private async Task StartSweepAsync()
     {
         if (IsSweeping) return;
-        
-        _logger.LogInformation("Starting Spectrum Sweep...");
+
+        _logger.LogInformation("Starting Spectrum Sweep via lineup.json...");
         var devices = await _db.GetAllDevicesAsync();
         var device = devices.FirstOrDefault();
         if (device == null)
@@ -54,7 +54,6 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
         {
             IsSweeping = true;
             ProgressPercent = 0;
-            
             foreach (var ch in Channels)
             {
                 ch.SignalStrength = 0;
@@ -65,52 +64,56 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
 
         try
         {
-            // Perform the sweep using Tuner 0
+            // The HDHomeRun lineup.json already contains SignalStrength and SignalQuality
+            // for every channel it knows about. Group by physical channel (major guide number)
+            // and take the best signal value per physical channel number.
+            var lineup = await _tunerClient.GetLineupAsync(device.BaseUrl);
+
+            // Build a lookup: physical_channel_number -> best SS and SQ seen on that channel
+            var signalByPhysical = new Dictionary<int, (int Ss, int Sq, bool HasLock)>();
+            foreach (var ch in lineup)
+            {
+                // GuideNumber is like "44.2" - the major part is the physical channel (ATSC major#)
+                var dot = ch.GuideNumber.IndexOf('.');
+                var majorStr = dot >= 0 ? ch.GuideNumber[..dot] : ch.GuideNumber;
+                if (!int.TryParse(majorStr, out var physCh)) continue;
+
+                var ss = ch.SignalStrength ?? 0;
+                var sq = ch.SignalQuality ?? 0;
+                var hasLock = ss > 0 || sq > 0;
+
+                if (!signalByPhysical.TryGetValue(physCh, out var existing) || ss > existing.Ss)
+                {
+                    signalByPhysical[physCh] = (ss, sq, hasLock);
+                }
+            }
+
+            _logger.LogInformation("Lineup returned {Count} channels across {Physical} physical channels.",
+                lineup.Count, signalByPhysical.Count);
+
+            // Update each SpectrumChannel grid cell
             for (int i = 0; i < Channels.Count; i++)
             {
                 var ch = Channels[i];
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => CurrentSweepChannel = ch.ChannelNumber);
-                
-                _logger.LogInformation("Sweeping Channel {Channel}...", ch.ChannelNumber);
-                
-                try
+                if (signalByPhysical.TryGetValue(ch.ChannelNumber, out var sig))
                 {
-                    // HDHomeRun HTTP API: tune via /tunerN/ch<frequency_hz>
-                    // UHF Ch14 = 473 MHz; each channel is 6 MHz apart
-                    var freqHz = GetUhfFrequencyHz(ch.ChannelNumber);
-                    await _tunerClient.SetChannelAsync(device.BaseUrl, 0, $"ch{freqHz}");
-                    // Wait 2 seconds for the tuner to search for and acquire a lock
-                    await Task.Delay(2000);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to command tuner to channel {Channel}", ch.ChannelNumber);
-                    continue; // Skip trying to read status if tuning failed
-                }
+                    _logger.LogInformation("Ch {Num}: SS={Ss}, SQ={Sq}, Lock={Lock}",
+                        ch.ChannelNumber, sig.Ss, sig.Sq, sig.HasLock);
 
-                var status = await _tunerClient.GetTunerStatusAsync(device.BaseUrl, 0);
-                if (status != null)
-                {
-                    _logger.LogInformation("Channel {Channel} Status - Lock: {Lock}, SS: {SS}, SEQ: {SEQ}", 
-                        ch.ChannelNumber, status.Lock, status.SignalStrength, status.SymbolQuality);
-
+                    var capturedSig = sig; // capture for lambda
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
-                        ch.SignalStrength = status.SignalStrength;
-                        ch.SymbolQuality = status.SymbolQuality;
-                        ch.HasLock = status.Lock != "none";
+                        ch.SignalStrength = capturedSig.Ss;
+                        ch.SymbolQuality = capturedSig.Sq;
+                        ch.HasLock = capturedSig.HasLock;
                     });
                 }
-                else
-                {
-                    _logger.LogWarning("Failed to get tuner status for Channel {Channel}", ch.ChannelNumber);
-                }
 
+                var capturedI = i;
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    ProgressPercent = (int)((i + 1) / (float)Channels.Count * 100);
-                });
+                    ProgressPercent = (int)((capturedI + 1) / (float)Channels.Count * 100));
             }
+
             _logger.LogInformation("Spectrum Sweep Completed.");
         }
         catch (Exception ex)
@@ -119,20 +122,6 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
         }
         finally
         {
-            _logger.LogInformation("Releasing Tuner 0...");
-            // Release tuner
-            if (device != null)
-            {
-                try
-                {
-                    await _tunerClient.SetChannelAsync(device.BaseUrl, 0, "none");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to release tuner 0.");
-                }
-            }
-
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 IsSweeping = false;
@@ -140,9 +129,6 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
             });
         }
     }
-
-    private static long GetUhfFrequencyHz(int channel)
-        => 473_000_000L + (long)(channel - 14) * 6_000_000L;
 }
 
 public partial class SpectrumChannel : ObservableObject
