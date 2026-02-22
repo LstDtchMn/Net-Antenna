@@ -45,6 +45,11 @@ public static class Converters
     /// <summary>Bool to logging button text.</summary>
     public static readonly IValueConverter BoolToLoggingText =
         new FuncValueConverter<bool, string>(logging => logging ? "⏹ Stop Logging" : "▶ Start Logging");
+
+    /// <summary>Converts bool (HasLock) to a border color for Spectrum Overview.</summary>
+    public static readonly IValueConverter LockToColor =
+        new FuncValueConverter<bool, IBrush>(hasLock =>
+            hasLock ? new SolidColorBrush(Color.Parse("#A6E3A1")) : new SolidColorBrush(Color.Parse("#313244")));
 }
 
 public class NavItemBackgroundConverter : IValueConverter

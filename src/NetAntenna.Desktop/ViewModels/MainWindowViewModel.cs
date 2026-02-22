@@ -12,6 +12,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IDatabaseService _database;
     private readonly DashboardViewModel _dashboardVm;
     private readonly ChannelManagerViewModel _channelManagerVm;
+    private readonly TowerMapViewModel _towerMapVm;
+    private readonly SpectrumOverviewViewModel _spectrumOverviewVm;
+    private readonly AimingAssistantViewModel _aimingAssistantVm;
     private readonly SettingsViewModel _settingsVm;
 
     [ObservableProperty]
@@ -40,12 +43,18 @@ public partial class MainWindowViewModel : ViewModelBase
         IDatabaseService database,
         DashboardViewModel dashboardVm,
         ChannelManagerViewModel channelManagerVm,
+        TowerMapViewModel towerMapVm,
+        SpectrumOverviewViewModel spectrumOverviewVm,
+        AimingAssistantViewModel aimingAssistantVm,
         SettingsViewModel settingsVm)
     {
         _discovery = discovery;
         _database = database;
         _dashboardVm = dashboardVm;
         _channelManagerVm = channelManagerVm;
+        _towerMapVm = towerMapVm;
+        _spectrumOverviewVm = spectrumOverviewVm;
+        _aimingAssistantVm = aimingAssistantVm;
         _settingsVm = settingsVm;
         _currentPage = dashboardVm;
 
@@ -61,8 +70,11 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             "Dashboard" => _dashboardVm,
             "Channels" => _channelManagerVm,
+            "TowerMap" => _towerMapVm,
+            "SpectrumOverview" => _spectrumOverviewVm,
+            "AimingAssistant" => _aimingAssistantVm,
             "Settings" => _settingsVm,
-            _ => _dashboardVm
+            _ => CurrentPage
         };
     }
 

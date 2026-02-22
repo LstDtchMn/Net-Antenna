@@ -81,12 +81,16 @@
 
         <!-- Bottom Pane: Chart Area -->
         <Border Grid.Row="1" Background="#1E1E2E" CornerRadius="8" Padding="16">
-            <Grid RowDefinitions="*,Auto">
+            <Grid RowDefinitions="Auto,*,Auto">
+                
+                <!-- Weather Overlay -->
+                <TextBlock Grid.Row="0" Text="{Binding CurrentWeather}" Foreground="#89B4FA" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,0,0,8" />
+
                 <!-- ScottPlot Chart -->
-                <sp:AvaPlot x:Name="SignalChart" Grid.Row="0"/>
+                <sp:AvaPlot x:Name="SignalChart" Grid.Row="1"/>
 
                 <!-- Time Window Controls -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="0,8,0,0"
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,8,0,0"
                             HorizontalAlignment="Center">
                     <Button Content="1h" Padding="12,4" CornerRadius="4" FontSize="12"
                             Tag="1h" Click="OnTimeWindowClick"/>

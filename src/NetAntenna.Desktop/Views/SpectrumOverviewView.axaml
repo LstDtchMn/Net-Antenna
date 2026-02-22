@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+             x:Class="NetAntenna.Desktop.Views.SpectrumOverviewView"
+             x:DataType="vm:SpectrumOverviewViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        
+        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="UHF Spectrum Analyzer" FontSize="20" FontWeight="SemiBold" Foreground="White" />
+                    <TextBlock Text="Sweeps channels 14-36 using Tuner 0 to build a heat map of active frequencies." Foreground="#B0B0B0" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Button Grid.Column="1" 
+                        Content="📡 Start Sweep" 
+                        Command="{Binding StartSweepCommand}" 
+                        IsEnabled="{Binding !IsSweeping}"
+                        Padding="16,8"
+                        Background="#89B4FA" Foreground="Black" FontWeight="Bold">
+                    <Button.Styles>
+                        <Style Selector="Button:disabled">
+                            <Setter Property="Background" Value="#313244"/>
+                            <Setter Property="Foreground" Value="#A6ADC8"/>
+                            <Setter Property="Content" Value="⏳ Sweeping..." />
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </Grid>
+        </Border>
+        
+        <!-- Progress Bar -->
+        <ProgressBar Grid.Row="1" Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" 
+                     Height="4" Margin="0,0,0,16" Foreground="#A6E3A1" Background="#313244"/>
+
+        <!-- Spectrum Grid -->
+        <ScrollViewer Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding Channels}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Width="120" Height="100" Margin="4" CornerRadius="8" Background="#181825" BorderThickness="1">
+                            <!-- Color code the border based on Lock -->
+                            <Border.BorderBrush>
+                                <SolidColorBrush Color="{Binding HasLock, Converter={StaticResource LockToColorConverter}}"/>
+                            </Border.BorderBrush>
+                            
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
+                                <TextBlock Text="{Binding ChannelNumber, StringFormat='{}Ch {0}'}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="8,4" HorizontalAlignment="Stretch">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="SS" FontSize="11" Foreground="#A6ADC8" Margin="0,0,4,0"/>
+                                    <ProgressBar Grid.Row="0" Grid.Column="1" Value="{Binding SignalStrength}" Maximum="100" Height="4" Foreground="#A6E3A1" VerticalAlignment="Center"/>
+                                    
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SNQ" FontSize="11" Foreground="#A6ADC8" Margin="0,0,4,0"/>
+                                    <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding SymbolQuality}" Maximum="100" Height="4" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                                </Grid>
+                                
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

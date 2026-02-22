@@ -68,13 +68,24 @@
                         CornerRadius="0"/>
 
                 <Button Content="📺  Channels"
-                        Command="{Binding NavigateToCommand}"
-                        CommandParameter="Channels"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left"
-                        Padding="16,10"
+                        Command="{Binding NavigateToCommand}" CommandParameter="Channels"
                         Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=Channels}"
-                        CornerRadius="0"/>
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,10" CornerRadius="0"/>
+
+                <Button Content="🗺️  Tower Map"
+                        Command="{Binding NavigateToCommand}" CommandParameter="TowerMap"
+                        Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=TowerMap}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,10" CornerRadius="0"/>
+
+                <Button Content="📻  Spectrum Sweep"
+                        Command="{Binding NavigateToCommand}" CommandParameter="SpectrumOverview"
+                        Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=SpectrumOverview}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,10" CornerRadius="0"/>
+
+                <Button Content="🧭  Aiming Assistant"
+                        Command="{Binding NavigateToCommand}" CommandParameter="AimingAssistant"
+                        Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=AimingAssistant}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,10" CornerRadius="0"/>
 
                 <Button Content="⚙  Settings"
                         Command="{Binding NavigateToCommand}"

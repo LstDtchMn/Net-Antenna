@@ -70,6 +70,8 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
                 ON signal_samples(device_id, timestamp_unix_ms);
             CREATE INDEX IF NOT EXISTS idx_samples_channel_time
                 ON signal_samples(channel, timestamp_unix_ms);
+            CREATE INDEX IF NOT EXISTS idx_samples_device_tuner_time
+                ON signal_samples(device_id, tuner_index, timestamp_unix_ms);
 
             CREATE TABLE IF NOT EXISTS channel_lineup (
                 device_id           TEXT NOT NULL,
@@ -90,6 +92,18 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
             CREATE TABLE IF NOT EXISTS settings (
                 key                 TEXT PRIMARY KEY,
                 value               TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS fcc_towers (
+                facility_id         INTEGER PRIMARY KEY,
+                call_sign           TEXT,
+                transmit_channel    INTEGER,
+                latitude            REAL,
+                longitude           REAL,
+                erp_kw              REAL,
+                haat_meters         REAL,
+                is_nextgen_tv       INTEGER,
+                service_type        TEXT
             );
 
             CREATE TABLE IF NOT EXISTS schema_version (
@@ -472,7 +486,7 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task<Dictionary<string, string>> GetAllSettingsAsync()
+    public async Task<IReadOnlyDictionary<string, string>> GetAllSettingsAsync()
     {
         var conn = await GetConnectionAsync();
         using var cmd = conn.CreateCommand();
@@ -487,7 +501,87 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
         return settings;
     }
 
+    // --- FCC Data Integration ---
+
+    public async Task ReplaceFccTowersAsync(IEnumerable<FccTower> towers)
+    {
+        await using var transaction = await _connection.BeginTransactionAsync();
+        try
+        {
+            await using var clearCmd = _connection.CreateCommand();
+            clearCmd.CommandText = "DELETE FROM fcc_towers";
+            await clearCmd.ExecuteNonQueryAsync();
+
+            await using var insertCmd = _connection.CreateCommand();
+            insertCmd.CommandText = @"
+                INSERT INTO fcc_towers (
+                    facility_id, call_sign, transmit_channel, latitude, longitude,
+                    erp_kw, haat_meters, is_nextgen_tv, service_type
+                ) VALUES (
+                    $fac, $call, $chan, $lat, $lon, $erp, $haat, $nextgen, $type
+                )";
+
+            var pFac = insertCmd.Parameters.Add("$fac", SqliteType.Integer);
+            var pCall = insertCmd.Parameters.Add("$call", SqliteType.Text);
+            var pChan = insertCmd.Parameters.Add("$chan", SqliteType.Integer);
+            var pLat = insertCmd.Parameters.Add("$lat", SqliteType.Real);
+            var pLon = insertCmd.Parameters.Add("$lon", SqliteType.Real);
+            var pErp = insertCmd.Parameters.Add("$erp", SqliteType.Real);
+            var pHaat = insertCmd.Parameters.Add("$haat", SqliteType.Real);
+            var pNextgen = insertCmd.Parameters.Add("$nextgen", SqliteType.Integer);
+            var pType = insertCmd.Parameters.Add("$type", SqliteType.Text);
+
+            foreach (var t in towers)
+            {
+                pFac.Value = t.FacilityId;
+                pCall.Value = t.CallSign;
+                pChan.Value = t.TransmitChannel;
+                pLat.Value = t.Latitude;
+                pLon.Value = t.Longitude;
+                pErp.Value = t.ErpKw;
+                pHaat.Value = t.HaatMeters;
+                pNextgen.Value = t.IsNextGenTv ? 1 : 0;
+                pType.Value = t.ServiceType;
+
+                await insertCmd.ExecuteNonQueryAsync();
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<IReadOnlyList<FccTower>> GetAllFccTowersAsync()
+    {
+        await using var command = _connection.CreateCommand();
+        command.CommandText = "SELECT * FROM fcc_towers";
+
+        var list = new List<FccTower>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            list.Add(new FccTower
+            {
+                FacilityId = reader.GetInt32(0),
+                CallSign = reader.GetString(1),
+                TransmitChannel = reader.GetInt32(2),
+                Latitude = reader.GetDouble(3),
+                Longitude = reader.GetDouble(4),
+                ErpKw = reader.GetDouble(5),
+                HaatMeters = reader.GetDouble(6),
+                IsNextGenTv = reader.GetInt32(7) != 0,
+                ServiceType = reader.GetString(8)
+            });
+        }
+        return list;
+    }
+
     public void Dispose()
+
     {
         _connection?.Dispose();
     }

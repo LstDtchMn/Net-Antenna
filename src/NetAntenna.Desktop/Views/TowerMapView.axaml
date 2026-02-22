@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+             xmlns:mapsui="clr-namespace:Mapsui.UI.Avalonia;assembly=Mapsui.UI.Avalonia"
+             x:Class="NetAntenna.Desktop.Views.TowerMapView"
+             x:DataType="vm:TowerMapViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Control Header -->
+        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <TextBlock Text="FCC Tower Map" FontSize="20" FontWeight="SemiBold" Foreground="White" />
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="Towers Indindexed:" Foreground="#B0B0B0" />
+                        <TextBlock Text="{Binding TowerCount}" Foreground="White" FontWeight="Bold" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="Last Updated:" Foreground="#B0B0B0" />
+                        <TextBlock Text="{Binding LastUpdateText}" Foreground="White" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="1" 
+                        Content="⬇️ Download FCC Data" 
+                        Command="{Binding DownloadFccDataCommand}" 
+                        IsEnabled="{Binding !IsUpdating}"
+                        Padding="16,8"
+                        Background="#313244">
+                    <Button.Styles>
+                        <Style Selector="Button:disabled">
+                            <Setter Property="Content" Value="⏳ Downloading (takes ~30s)..." />
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Map Container -->
+        <Border Grid.Row="1" Background="#11111B" CornerRadius="8" ClipToBounds="True">
+            <mapsui:MapControl x:Name="TowerMap" />
+        </Border>
+    </Grid>
+</UserControl>

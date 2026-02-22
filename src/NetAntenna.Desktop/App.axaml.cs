@@ -50,27 +50,24 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Database — singleton, single connection with WAL mode
-        var dbPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "NetAntenna", "netantenna.db");
-        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-        services.AddSingleton<IDatabaseService>(new DatabaseService(dbPath));
-
-        // HTTP client for HDHomeRun
-        services.AddSingleton<HttpClient>(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(5) });
-        services.AddSingleton<ITunerClient, TunerHttpClient>();
-
-        // Device discovery
+        // Phase 1 Core Services
+        services.AddSingleton<IDatabaseService>(sp =>
+        {
+            var folder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var path = Path.Combine(folder, "NetAntenna", "netantenna.db");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            return new DatabaseService(path);
+        });
         services.AddSingleton<IDeviceDiscovery, DeviceDiscoveryService>();
-
-        // Signal logger
+        services.AddTransient<ITunerClient, TunerHttpClient>();
         services.AddSingleton<ISignalLogger, SignalLoggerService>();
 
         // ViewModels
-        services.AddTransient<MainWindowViewModel>();
         services.AddTransient<DashboardViewModel>();
         services.AddTransient<ChannelManagerViewModel>();
+        services.AddTransient<TowerMapViewModel>();
+        services.AddTransient<SpectrumOverviewViewModel>();
+        services.AddTransient<AimingAssistantViewModel>();
         services.AddTransient<SettingsViewModel>();
     }
 

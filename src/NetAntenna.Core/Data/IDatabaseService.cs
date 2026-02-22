@@ -28,8 +28,12 @@ public interface IDatabaseService
     Task UpsertChannelsAsync(string deviceId, IEnumerable<ChannelInfo> channels);
     Task<IReadOnlyList<ChannelInfo>> GetChannelLineupAsync(string deviceId);
 
-    // --- Settings ---
+    // Settings
     Task<string?> GetSettingAsync(string key);
+    Task<IReadOnlyDictionary<string, string>> GetAllSettingsAsync();
     Task SetSettingAsync(string key, string value);
-    Task<Dictionary<string, string>> GetAllSettingsAsync();
+
+    // FCC Data Integration
+    Task ReplaceFccTowersAsync(IEnumerable<FccTower> towers);
+    Task<IReadOnlyList<FccTower>> GetAllFccTowersAsync();
 }

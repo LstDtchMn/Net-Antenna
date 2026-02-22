@@ -64,6 +64,22 @@ public sealed class TunerHttpClient : ITunerClient, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task SetChannelAsync(
+        string baseUrl, int tunerIndex, string channel, CancellationToken ct = default)
+    {
+        // To set a channel via HTTP: POST /tuner{n}/target
+        // Body: channel=8vsb:14
+        var url = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/target";
+        var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["channel"] = channel
+        });
+
+        using var response = await _http.PostAsync(url, content, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <inheritdoc />
     public async Task SetChannelVisibilityAsync(
         string baseUrl, string guideNumber, bool visible, CancellationToken ct = default)
     {

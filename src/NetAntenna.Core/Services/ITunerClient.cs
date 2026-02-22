@@ -23,6 +23,10 @@ public interface ITunerClient
     Task SetChannelVisibilityAsync(
         string baseUrl, string guideNumber, bool visible, CancellationToken ct = default);
 
+    /// <summary>POST /tuner{n}/target — Set the physical tuner channel (e.g. "8vsb:14").</summary>
+    Task SetChannelAsync(
+        string baseUrl, int tunerIndex, string channel, CancellationToken ct = default);
+
     /// <summary>POST /lineup.post — Set channel favorite status.</summary>
     Task SetChannelFavoriteAsync(
         string baseUrl, string guideNumber, bool favorite, CancellationToken ct = default);

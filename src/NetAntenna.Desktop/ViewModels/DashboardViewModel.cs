@@ -12,6 +12,7 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly ITunerClient _tunerClient;
     private readonly ISignalLogger _signalLogger;
     private readonly IDatabaseService _database;
+    private readonly INwsWeatherService _weatherService;
 
     private HdHomeRunDevice? _currentDevice;
 
@@ -34,6 +35,7 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty] private bool _isLiveMode = true;
     [ObservableProperty] private string _selectedTimeWindow = "1h";
     [ObservableProperty] private bool _isLogging;
+    [ObservableProperty] private string _currentWeather = "Weather condition unknown";
 
     // Signal data for the chart
     public ObservableCollection<SignalSample> ChartSamples { get; } = new();
@@ -41,11 +43,13 @@ public partial class DashboardViewModel : ViewModelBase
     public DashboardViewModel(
         ITunerClient tunerClient,
         ISignalLogger signalLogger,
-        IDatabaseService database)
+        IDatabaseService database,
+        INwsWeatherService weatherService)
     {
         _tunerClient = tunerClient;
         _signalLogger = signalLogger;
         _database = database;
+        _weatherService = weatherService;
 
         // Subscribe to real-time samples
         _signalLogger.SignalSampleReceived += OnSignalSampleReceived;
@@ -59,6 +63,28 @@ public partial class DashboardViewModel : ViewModelBase
 
         // Load historical data for the chart
         await LoadHistoricalDataAsync();
+        
+        // Load weather
+        _ = LoadWeatherAsync();
+    }
+
+    private async Task LoadWeatherAsync()
+    {
+        var latStr = await _database.GetSettingAsync("user_lat");
+        var lonStr = await _database.GetSettingAsync("user_lng");
+        
+        if (double.TryParse(latStr, out var lat) && double.TryParse(lonStr, out var lon))
+        {
+            var weather = await _weatherService.GetCurrentConditionsAsync(lat, lon);
+            if (!string.IsNullOrEmpty(weather))
+            {
+                CurrentWeather = $"Local Weather: {weather}";
+            }
+        }
+        else
+        {
+            CurrentWeather = "Set location in settings for weather";
+        }
     }
 
     public async Task StartQuickScanAsync(HdHomeRunDevice device)
