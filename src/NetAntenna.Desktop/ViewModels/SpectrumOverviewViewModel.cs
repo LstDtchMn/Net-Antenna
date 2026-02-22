@@ -19,7 +19,7 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
     [ObservableProperty] private bool _isRescanning;
     [ObservableProperty] private string _rescanStatusText = "";
     
-    // Channels 14 -> 36 are the modern post-repack UHF TV band
+    // Dynamically populated from device lineup
     public ObservableCollection<SpectrumChannel> Channels { get; } = new();
 
     public SpectrumOverviewViewModel(
@@ -30,12 +30,6 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
         _tunerClient = tunerClient;
         _db = db;
         _logger = logger;
-        
-        // Initialize the UHF grid
-        for (int i = 14; i <= 36; i++)
-        {
-            Channels.Add(new SpectrumChannel { ChannelNumber = i });
-        }
     }
 
     [RelayCommand]
@@ -56,6 +50,7 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
         {
             IsSweeping = true;
             ProgressPercent = 0;
+            // Clear existing lock status, but keep grid structure if already loaded
             foreach (var ch in Channels)
             {
                 ch.SignalStrength = 0;
@@ -93,28 +88,36 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
             _logger.LogInformation("Lineup returned {Count} channels across {Physical} physical channels.",
                 lineup.Count, signalByPhysical.Count);
 
-            // Update each SpectrumChannel grid cell
-            for (int i = 0; i < Channels.Count; i++)
-            {
-                var ch = Channels[i];
-                if (signalByPhysical.TryGetValue(ch.ChannelNumber, out var sig))
-                {
-                    _logger.LogInformation("Ch {Num}: SS={Ss}, SQ={Sq}, Lock={Lock}",
-                        ch.ChannelNumber, sig.Ss, sig.Sq, sig.HasLock);
+            // Rebuild the UI grid on the main thread
+            var orderedPhysicals = signalByPhysical.Keys.OrderBy(c => c).ToList();
 
-                    var capturedSig = sig; // capture for lambda
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                var currentKeys = Channels.Select(c => c.ChannelNumber).ToHashSet();
+                
+                // If the channel set changed completely (or is empty), clear and rebuild
+                if (!currentKeys.SetEquals(orderedPhysicals))
+                {
+                    Channels.Clear();
+                    foreach (var phys in orderedPhysicals)
                     {
-                        ch.SignalStrength = capturedSig.Ss;
-                        ch.SymbolQuality = capturedSig.Sq;
-                        ch.HasLock = capturedSig.HasLock;
-                    });
+                        Channels.Add(new SpectrumChannel { ChannelNumber = phys });
+                    }
                 }
 
-                var capturedI = i;
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    ProgressPercent = (int)((capturedI + 1) / (float)Channels.Count * 100));
-            }
+                // Update the signal values for all cells
+                for (int i = 0; i < Channels.Count; i++)
+                {
+                    var ch = Channels[i];
+                    if (signalByPhysical.TryGetValue(ch.ChannelNumber, out var sig))
+                    {
+                        ch.SignalStrength = sig.Ss;
+                        ch.SymbolQuality = sig.Sq;
+                        ch.HasLock = sig.HasLock;
+                    }
+                    ProgressPercent = (int)((i + 1) / (float)Channels.Count * 100);
+                }
+            });
 
             _logger.LogInformation("Spectrum Sweep Completed.");
         }
