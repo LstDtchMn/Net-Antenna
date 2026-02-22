@@ -51,9 +51,13 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
+        var memoryLogger = new MemoryLogProvider();
+        services.AddSingleton<IMemoryLogSink>(memoryLogger);
+
         services.AddLogging(builder =>
         {
             builder.AddConsole();
+            builder.AddProvider(memoryLogger);
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
@@ -79,6 +83,7 @@ public partial class App : Application
         services.AddTransient<TowerMapViewModel>();
         services.AddTransient<SpectrumOverviewViewModel>();
         services.AddTransient<AimingAssistantViewModel>();
+        services.AddTransient<LogsViewModel>();
         services.AddTransient<SettingsViewModel>();
     }
 

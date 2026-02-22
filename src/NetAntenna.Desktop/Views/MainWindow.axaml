@@ -87,6 +87,11 @@
                         Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=AimingAssistant}"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,10" CornerRadius="0"/>
 
+                <Button Content="📝  Logs"
+                        Command="{Binding NavigateToCommand}" CommandParameter="Logs"
+                        Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=Logs}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,10" CornerRadius="0"/>
+
                 <Button Content="⚙  Settings"
                         Command="{Binding NavigateToCommand}"
                         CommandParameter="Settings"

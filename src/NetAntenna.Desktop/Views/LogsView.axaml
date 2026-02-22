@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+             x:Class="NetAntenna.Desktop.Views.LogsView"
+             x:DataType="vm:LogsViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        
+        <!-- Header Controls -->
+        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="System Logs" FontSize="20" FontWeight="SemiBold" Foreground="White" />
+                    <TextBlock Text="Real-time application output and debugging events." Foreground="#B0B0B0" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <TextBox Grid.Column="1" Text="{Binding SearchText}" Watermark="🔎 Search logs..." Width="250" VerticalAlignment="Center" Margin="16,0"/>
+
+                <ToggleButton Grid.Column="2" Content="Auto-Scroll" IsChecked="{Binding AutoScroll}" Padding="12,8" Margin="0,0,16,0" VerticalAlignment="Center"/>
+
+                <Button Grid.Column="3" Content="🗑 Clear" Command="{Binding ClearLogsCommand}" Padding="16,8" VerticalAlignment="Center" Background="#F38BA8" Foreground="Black" FontWeight="Bold"/>
+
+            </Grid>
+        </Border>
+        
+        <!-- Logs DataGrid -->
+        <Border Grid.Row="1" Background="#1E1E2E" CornerRadius="8">
+            <DataGrid ItemsSource="{Binding LogEntries}" AutoGenerateColumns="False" CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="False" IsReadOnly="True" GridLinesVisibility="All" BorderThickness="0" Background="Transparent" RowBackground="#1E1E2E">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss.fff}'}" Width="110"/>
+                    <DataGridTextColumn Header="Level" Binding="{Binding Level}" Width="90"/>
+                    <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="250"/>
+                    <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+    </Grid>
+</UserControl>

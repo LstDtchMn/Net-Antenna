@@ -15,6 +15,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly TowerMapViewModel _towerMapVm;
     private readonly SpectrumOverviewViewModel _spectrumOverviewVm;
     private readonly AimingAssistantViewModel _aimingAssistantVm;
+    private readonly LogsViewModel _logsVm;
     private readonly SettingsViewModel _settingsVm;
 
     [ObservableProperty]
@@ -46,6 +47,7 @@ public partial class MainWindowViewModel : ViewModelBase
         TowerMapViewModel towerMapVm,
         SpectrumOverviewViewModel spectrumOverviewVm,
         AimingAssistantViewModel aimingAssistantVm,
+        LogsViewModel logsVm,
         SettingsViewModel settingsVm)
     {
         _discovery = discovery;
@@ -55,6 +57,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _towerMapVm = towerMapVm;
         _spectrumOverviewVm = spectrumOverviewVm;
         _aimingAssistantVm = aimingAssistantVm;
+        _logsVm = logsVm;
         _settingsVm = settingsVm;
         _currentPage = dashboardVm;
 
@@ -73,6 +76,7 @@ public partial class MainWindowViewModel : ViewModelBase
             "TowerMap" => _towerMapVm,
             "SpectrumOverview" => _spectrumOverviewVm,
             "AimingAssistant" => _aimingAssistantVm,
+            "Logs" => _logsVm,
             "Settings" => _settingsVm,
             _ => CurrentPage
         };
