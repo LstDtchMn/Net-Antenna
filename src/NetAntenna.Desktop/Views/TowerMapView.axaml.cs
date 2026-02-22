@@ -28,9 +28,9 @@ public partial class TowerMapView : UserControl
         _towerLayer = new MemoryLayer { Name = "Towers" };
         TowerMap.Map?.Layers.Add(_towerLayer);
 
-        // Center map on the US to start
+        // Center map initially (will be overridden by DataContext if valid)
         var (x, y) = SphericalMercator.FromLonLat(-98.5795, 39.8283);
-        TowerMap.Map?.Navigator?.CenterOnAndZoomTo(new MPoint(x, y), 5000);
+        TowerMap.Map?.Navigator?.CenterOnAndZoomTo(new MPoint(x, y), 100000);
 
         DataContextChanged += OnDataContextChanged;
     }
@@ -40,7 +40,33 @@ public partial class TowerMapView : UserControl
         if (DataContext is TowerMapViewModel vm)
         {
             vm.Towers.CollectionChanged += OnTowersChanged;
+            vm.PropertyChanged += OnViewModelPropertyChanged;
             DrawTowers(vm.Towers);
+            CenterMap(vm.UserLat, vm.UserLng);
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (DataContext is TowerMapViewModel vm && 
+           (e.PropertyName == nameof(TowerMapViewModel.UserLat) || e.PropertyName == nameof(TowerMapViewModel.UserLng)))
+        {
+            CenterMap(vm.UserLat, vm.UserLng);
+        }
+    }
+
+    private void CenterMap(string latStr, string lngStr)
+    {
+        if (double.TryParse(latStr, out var lat) && double.TryParse(lngStr, out var lng))
+        {
+            var (x, y) = SphericalMercator.FromLonLat(lng, lat);
+            TowerMap.Map?.Navigator?.CenterOnAndZoomTo(new MPoint(x, y), 5000); // Zoom level 5000 (roughly regional)
+            
+            // Re-draw towers whenever location changes so user pin is updated
+            if (DataContext is TowerMapViewModel vm)
+            {
+                DrawTowers(vm.Towers);
+            }
         }
     }
 
@@ -55,6 +81,34 @@ public partial class TowerMapView : UserControl
     private void DrawTowers(IEnumerable<FccTower> towers)
     {
         var features = new List<GeometryFeature>();
+
+        // Add User Location Pin
+        if (DataContext is TowerMapViewModel vm && 
+            double.TryParse(vm.UserLat, out var uLat) && 
+            double.TryParse(vm.UserLng, out var uLng))
+        {
+            var (ux, uy) = SphericalMercator.FromLonLat(uLng, uLat);
+            var userFeature = new GeometryFeature
+            {
+                Geometry = new Point(ux, uy)
+            };
+            userFeature.Styles.Add(new SymbolStyle
+            {
+                SymbolType = SymbolType.Ellipse,
+                Fill = new Brush(new Color(76, 175, 80, 200)), // Green
+                Outline = new Pen { Color = Color.White, Width = 2 },
+                SymbolScale = 0.6
+            });
+            userFeature.Styles.Add(new LabelStyle
+            {
+                Text = "My Location",
+                ForeColor = Color.White,
+                BackColor = new Brush(Color.Black),
+                Offset = new Offset(0, 16),
+                Halo = new Pen(Color.Black, 2)
+            });
+            features.Add(userFeature);
+        }
 
         foreach (var t in towers)
         {

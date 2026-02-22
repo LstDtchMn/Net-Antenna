@@ -15,6 +15,9 @@ public partial class TowerMapViewModel : ViewModelBase
     [ObservableProperty] private string _lastUpdateText = "Never";
     [ObservableProperty] private int _towerCount;
     [ObservableProperty] private ObservableCollection<FccTower> _towers = new();
+    
+    [ObservableProperty] private string _userLat = "";
+    [ObservableProperty] private string _userLng = "";
 
     public TowerMapViewModel(IFccDataService fccService, NetAntenna.Core.Data.IDatabaseService db)
     {
@@ -31,6 +34,21 @@ public partial class TowerMapViewModel : ViewModelBase
 
         var lastUpdate = await _fccService.GetLastUpdateDateAsync();
         LastUpdateText = lastUpdate?.ToString("g") ?? "Never";
+        
+        // Load user coordinates
+        UserLat = await _db.GetSettingAsync("user_lat") ?? "39.8283"; // Default US Center
+        UserLng = await _db.GetSettingAsync("user_lng") ?? "-98.5795";
+    }
+
+    [RelayCommand]
+    private async Task SaveLocationAsync()
+    {
+        if (double.TryParse(UserLat, out var lat) && double.TryParse(UserLng, out var lng))
+        {
+            await _db.SetSettingAsync("user_lat", lat.ToString());
+            await _db.SetSettingAsync("user_lng", lng.ToString());
+            // Map refresh will happen via MapControl logic monitoring this VM, or user can push a button
+        }
     }
 
     [RelayCommand]

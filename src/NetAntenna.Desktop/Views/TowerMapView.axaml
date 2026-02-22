@@ -21,6 +21,16 @@
                         <TextBlock Text="Last Updated:" Foreground="#B0B0B0" />
                         <TextBlock Text="{Binding LastUpdateText}" Foreground="White" />
                     </StackPanel>
+
+                    <Separator Width="1" Background="#313244" Margin="4,0" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="Lat:" Foreground="#B0B0B0" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding UserLat}" Width="80" Padding="6,2" FontSize="12" />
+                        <TextBlock Text="Lng:" Foreground="#B0B0B0" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBox Text="{Binding UserLng}" Width="80" Padding="6,2" FontSize="12" />
+                        <Button Content="💾 Save" Command="{Binding SaveLocationCommand}" Padding="8,4" FontSize="12" Background="#00BCD4" Foreground="White" CornerRadius="4" Margin="4,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <Button Grid.Column="1" 
