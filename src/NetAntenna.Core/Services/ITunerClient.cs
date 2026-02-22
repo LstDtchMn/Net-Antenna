@@ -35,4 +35,14 @@ public interface ITunerClient
     /// <summary>POST /lineup.post — Set channel favorite status.</summary>
     Task SetChannelFavoriteAsync(
         string baseUrl, string guideNumber, bool favorite, CancellationToken ct = default);
+
+    /// <summary>
+    /// POST /lineup.post?action=scan — Trigger a full RF channel scan on the device.
+    /// The device will walk all frequencies and rebuild its lineup.
+    /// Poll GetLineupScanStatusAsync to track progress.
+    /// </summary>
+    Task StartLineupScanAsync(string baseUrl, CancellationToken ct = default);
+
+    /// <summary>GET /lineup_status.json — Poll the current channel scan progress.</summary>
+    Task<LineupScanStatus> GetLineupScanStatusAsync(string baseUrl, CancellationToken ct = default);
 }

@@ -16,6 +16,8 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
     [ObservableProperty] private bool _isSweeping;
     [ObservableProperty] private int _currentSweepChannel;
     [ObservableProperty] private int _progressPercent;
+    [ObservableProperty] private bool _isRescanning;
+    [ObservableProperty] private string _rescanStatusText = "";
     
     // Channels 14 -> 36 are the modern post-repack UHF TV band
     public ObservableCollection<SpectrumChannel> Channels { get; } = new();
@@ -127,6 +129,67 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                 IsSweeping = false;
                 ProgressPercent = 100;
             });
+        }
+    }
+
+    [RelayCommand]
+    private async Task RescanDeviceAsync()
+    {
+        if (IsRescanning || IsSweeping) return;
+
+        var devices = await _db.GetAllDevicesAsync();
+        var device = devices.FirstOrDefault();
+        if (device == null)
+        {
+            _logger.LogWarning("No HDHomeRun devices found. Cannot start rescan.");
+            return;
+        }
+
+        _logger.LogInformation("Triggering device-level channel scan at {Url}...", device.BaseUrl);
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            IsRescanning = true;
+            RescanStatusText = "Starting scan...";
+        });
+
+        try
+        {
+            await _tunerClient.StartLineupScanAsync(device.BaseUrl);
+
+            // Poll until the device reports scan complete
+            while (true)
+            {
+                await Task.Delay(1500);
+                var status = await _tunerClient.GetLineupScanStatusAsync(device.BaseUrl);
+
+                var pct = status.Progress;
+                var found = status.Found;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    RescanStatusText = status.IsScanning
+                        ? $"Scanning... {pct}% ({found} channels found)"
+                        : $"Scan complete — {found} channels found");
+
+                _logger.LogInformation("Device scan progress: {Pct}%, found={Found}, inProgress={In}",
+                    pct, found, status.ScanInProgress);
+
+                if (!status.IsScanning) break;
+            }
+
+            _logger.LogInformation("Device scan completed. Refreshing sweep...");
+
+            // Refresh the sweep view with freshly scanned lineup data
+            await StartSweepAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during device channel rescan.");
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                RescanStatusText = $"Scan failed: {ex.Message}");
+        }
+        finally
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => IsRescanning = false);
         }
     }
 }

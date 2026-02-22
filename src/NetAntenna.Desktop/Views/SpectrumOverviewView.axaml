@@ -7,14 +7,29 @@
 
     <Grid RowDefinitions="Auto,Auto,*">
         
-        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-            <Grid ColumnDefinitions="*,Auto">
+        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,4">
+            <Grid ColumnDefinitions="*,Auto,Auto">
                 <StackPanel Grid.Column="0" Spacing="4">
                     <TextBlock Text="UHF Spectrum Analyzer" FontSize="20" FontWeight="SemiBold" Foreground="White" />
-                    <TextBlock Text="Sweeps channels 14-36 using Tuner 0 to build a heat map of active frequencies." Foreground="#B0B0B0" TextWrapping="Wrap"/>
+                    <TextBlock Text="Reads real-time signal data for all known channels from the device lineup." Foreground="#B0B0B0" TextWrapping="Wrap"/>
                 </StackPanel>
 
-                <Button Grid.Column="1" 
+                <Button Grid.Column="1"
+                        Content="🔄 Rescan Device"
+                        Command="{Binding RescanDeviceCommand}"
+                        IsEnabled="{Binding !IsRescanning}"
+                        Padding="12,8" Margin="0,0,8,0"
+                        Background="#313244" Foreground="White" FontWeight="Bold"
+                        ToolTip.Tip="Trigger a full RF channel scan on the HDHomeRun device (~1-2 min)">
+                    <Button.Styles>
+                        <Style Selector="Button:disabled">
+                            <Setter Property="Background" Value="#1E1E2E"/>
+                            <Setter Property="Foreground" Value="#6C7086"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+
+                <Button Grid.Column="2" 
                         Content="📡 Start Sweep" 
                         Command="{Binding StartSweepCommand}" 
                         IsEnabled="{Binding !IsSweeping}"
@@ -31,9 +46,15 @@
             </Grid>
         </Border>
         
-        <!-- Progress Bar -->
-        <ProgressBar Grid.Row="1" Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" 
-                     Height="4" Margin="0,0,0,16" Foreground="#A6E3A1" Background="#313244"/>
+        <!-- Rescan status + sweep progress -->
+        <StackPanel Grid.Row="1" Spacing="4" Margin="0,4,0,12">
+            <Border Background="#313244" CornerRadius="4" Padding="10,6"
+                    IsVisible="{Binding IsRescanning}">
+                <TextBlock Text="{Binding RescanStatusText}" Foreground="#A6E3A1" FontSize="13"/>
+            </Border>
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}"
+                         Height="4" Foreground="#A6E3A1" Background="#1E1E2E"/>
+        </StackPanel>
 
         <!-- Spectrum Grid -->
         <ScrollViewer Grid.Row="2">

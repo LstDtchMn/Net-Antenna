@@ -155,6 +155,26 @@ public sealed class TunerHttpClient : ITunerClient, IDisposable
         response.EnsureSuccessStatusCode();
     }
 
+    /// <inheritdoc />
+    public async Task StartLineupScanAsync(string baseUrl, CancellationToken ct = default)
+    {
+        // POST /lineup.post?action=scan starts a full RF channel scan on the device.
+        // The device rebuilds its entire lineup; this can take 1-2 minutes.
+        var url = $"{NormalizeUrl(baseUrl)}/lineup.post?action=scan";
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        var response = await _http.SendAsync(request, ct);
+        // Some firmware returns 200 OK, others return 204 No Content; both are fine.
+        // Don't call EnsureSuccessStatusCode — caller will poll status independently.
+    }
+
+    /// <inheritdoc />
+    public async Task<LineupScanStatus> GetLineupScanStatusAsync(string baseUrl, CancellationToken ct = default)
+    {
+        var url = $"{NormalizeUrl(baseUrl)}/lineup_status.json";
+        var status = await _http.GetFromJsonAsync<LineupScanStatus>(url, ct);
+        return status ?? new LineupScanStatus();
+    }
+
     private static string NormalizeUrl(string baseUrl)
     {
         var url = baseUrl.TrimEnd('/');
