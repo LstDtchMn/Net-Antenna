@@ -75,10 +75,12 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                 
                 try
                 {
-                    // Command tuner to tune to physical channel
-                    await _tunerClient.SetChannelAsync(device.BaseUrl, 0, $"8vsb:{ch.ChannelNumber}");
-                    // Wait 1 second for the tuner to acquire a lock
-                    await Task.Delay(1000);
+                    // HDHomeRun HTTP API: tune via /tunerN/ch<frequency_hz>
+                    // UHF Ch14 = 473 MHz; each channel is 6 MHz apart
+                    var freqHz = GetUhfFrequencyHz(ch.ChannelNumber);
+                    await _tunerClient.SetChannelAsync(device.BaseUrl, 0, $"ch{freqHz}");
+                    // Wait 2 seconds for the tuner to search for and acquire a lock
+                    await Task.Delay(2000);
                 }
                 catch (Exception ex)
                 {
@@ -138,6 +140,9 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
             });
         }
     }
+
+    private static long GetUhfFrequencyHz(int channel)
+        => 473_000_000L + (long)(channel - 14) * 6_000_000L;
 }
 
 public partial class SpectrumChannel : ObservableObject
@@ -146,4 +151,20 @@ public partial class SpectrumChannel : ObservableObject
     [ObservableProperty] private int _signalStrength;
     [ObservableProperty] private int _symbolQuality;
     [ObservableProperty] private bool _hasLock;
+
+    /// <summary>US UHF center frequency in MHz for display purposes.</summary>
+    public int FrequencyMhz => 473 + (ChannelNumber - 14) * 6;
+}
+
+internal static class UhfChannelHelper
+{
+    /// <summary>Converts a US UHF TV physical channel number to its center frequency in Hz.</summary>
+    public static long GetFrequencyHz(int channel)
+    {
+        // UHF Ch2-6: low VHF, 7-13: high VHF, 14-36: UHF
+        if (channel >= 14)
+            return (473_000_000L + (long)(channel - 14) * 6_000_000L);
+        // VHF fallback (not used by this app)
+        return 0;
+    }
 }
