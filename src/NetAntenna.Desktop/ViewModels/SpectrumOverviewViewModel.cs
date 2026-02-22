@@ -20,7 +20,7 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
     [ObservableProperty] private string _rescanStatusText = "";
     
     // Dynamically populated from device lineup
-    public ObservableCollection<SpectrumChannel> Channels { get; } = new();
+    public ObservableCollection<PhysicalChannelGroup> Channels { get; } = new();
 
     public SpectrumOverviewViewModel(
         ITunerClient tunerClient, 
@@ -63,11 +63,11 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
         {
             // The HDHomeRun lineup.json already contains SignalStrength and SignalQuality
             // for every channel it knows about. Group by physical channel (major guide number)
-            // and take the best signal value per physical channel number.
+            // and aggregate virtual channels and their names.
             var lineup = await _tunerClient.GetLineupAsync(device.BaseUrl);
 
-            // Build a lookup: physical_channel_number -> best SS and SQ seen on that channel
-            var signalByPhysical = new Dictionary<int, (int Ss, int Sq, bool HasLock)>();
+            // Build a lookup: physical_channel_number -> PhysicalChannelBuilder
+            var groups = new Dictionary<int, PhysicalChannelBuilder>();
             foreach (var ch in lineup)
             {
                 // GuideNumber is like "44.2" - the major part is the physical channel (ATSC major#)
@@ -79,21 +79,33 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                 var sq = ch.SignalQuality ?? 0;
                 var hasLock = ss > 0 || sq > 0;
 
-                if (!signalByPhysical.TryGetValue(physCh, out var existing) || ss > existing.Ss)
+                if (!groups.TryGetValue(physCh, out var group))
                 {
-                    signalByPhysical[physCh] = (ss, sq, hasLock);
+                    group = new PhysicalChannelBuilder();
+                    groups[physCh] = group;
                 }
+
+                // Keep the best signal levels seen on this physical channel
+                group.BestSs = Math.Max(group.BestSs, ss);
+                group.BestSq = Math.Max(group.BestSq, sq);
+                group.HasLock |= hasLock;
+
+                // Collect the networks and virtual channels
+                if (!string.IsNullOrWhiteSpace(ch.GuideNumber))
+                    group.VirtualChannels.Add(ch.GuideNumber);
+                if (!string.IsNullOrWhiteSpace(ch.GuideName))
+                    group.Networks.Add(ch.GuideName);
             }
 
-            _logger.LogInformation("Lineup returned {Count} channels across {Physical} physical channels.",
-                lineup.Count, signalByPhysical.Count);
+            _logger.LogInformation("Lineup returned {Count} virtual channels across {Physical} physical channels.",
+                lineup.Count, groups.Count);
 
             // Rebuild the UI grid on the main thread
-            var orderedPhysicals = signalByPhysical.Keys.OrderBy(c => c).ToList();
+            var orderedPhysicals = groups.Keys.OrderBy(c => c).ToList();
 
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                var currentKeys = Channels.Select(c => c.ChannelNumber).ToHashSet();
+                var currentKeys = Channels.Select(c => c.PhysicalChannel).ToHashSet();
                 
                 // If the channel set changed completely (or is empty), clear and rebuild
                 if (!currentKeys.SetEquals(orderedPhysicals))
@@ -101,19 +113,21 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                     Channels.Clear();
                     foreach (var phys in orderedPhysicals)
                     {
-                        Channels.Add(new SpectrumChannel { ChannelNumber = phys });
+                        Channels.Add(new PhysicalChannelGroup { PhysicalChannel = phys });
                     }
                 }
 
-                // Update the signal values for all cells
+                // Update the signal values and aggregated strings for all rows
                 for (int i = 0; i < Channels.Count; i++)
                 {
                     var ch = Channels[i];
-                    if (signalByPhysical.TryGetValue(ch.ChannelNumber, out var sig))
+                    if (groups.TryGetValue(ch.PhysicalChannel, out var group))
                     {
-                        ch.SignalStrength = sig.Ss;
-                        ch.SymbolQuality = sig.Sq;
-                        ch.HasLock = sig.HasLock;
+                        ch.SignalStrength = group.BestSs;
+                        ch.SymbolQuality = group.BestSq;
+                        ch.HasLock = group.HasLock;
+                        ch.VirtualChannels = string.Join(", ", group.VirtualChannels);
+                        ch.Networks = string.Join(", ", group.Networks);
                     }
                     ProgressPercent = (int)((i + 1) / (float)Channels.Count * 100);
                 }
@@ -197,26 +211,21 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
     }
 }
 
-public partial class SpectrumChannel : ObservableObject
+public partial class PhysicalChannelGroup : ObservableObject
 {
-    [ObservableProperty] private int _channelNumber;
+    [ObservableProperty] private int _physicalChannel;
     [ObservableProperty] private int _signalStrength;
     [ObservableProperty] private int _symbolQuality;
     [ObservableProperty] private bool _hasLock;
-
-    /// <summary>US UHF center frequency in MHz for display purposes.</summary>
-    public int FrequencyMhz => 473 + (ChannelNumber - 14) * 6;
+    [ObservableProperty] private string _virtualChannels = "";
+    [ObservableProperty] private string _networks = "";
 }
 
-internal static class UhfChannelHelper
+internal class PhysicalChannelBuilder
 {
-    /// <summary>Converts a US UHF TV physical channel number to its center frequency in Hz.</summary>
-    public static long GetFrequencyHz(int channel)
-    {
-        // UHF Ch2-6: low VHF, 7-13: high VHF, 14-36: UHF
-        if (channel >= 14)
-            return (473_000_000L + (long)(channel - 14) * 6_000_000L);
-        // VHF fallback (not used by this app)
-        return 0;
-    }
+    public int BestSs { get; set; }
+    public int BestSq { get; set; }
+    public bool HasLock { get; set; }
+    public List<string> VirtualChannels { get; } = new();
+    public List<string> Networks { get; } = new();
 }

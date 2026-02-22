@@ -56,34 +56,49 @@
                          Height="4" Foreground="#A6E3A1" Background="#1E1E2E"/>
         </StackPanel>
 
-        <!-- Spectrum Grid -->
-        <ScrollViewer Grid.Row="2">
+        <!-- Spectrum List -->
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding Channels}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal" />
+                        <StackPanel Orientation="Vertical" Spacing="8" Margin="0,0,16,0"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Width="120" Height="100" Margin="4" CornerRadius="8" Background="#181825" BorderThickness="1">
-                            <!-- Color code the border based on Lock -->
+                        <Border Background="#181825" CornerRadius="8" Padding="16" BorderThickness="1">
                             <Border.BorderBrush>
                                 <SolidColorBrush Color="{Binding HasLock, Converter={x:Static local:Converters.LockToColor}}"/>
                             </Border.BorderBrush>
                             
-                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
-                                <TextBlock Text="{Binding ChannelNumber, StringFormat='{}Ch {0}'}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                
-                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="8,4" HorizontalAlignment="Stretch">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="SS" FontSize="11" Foreground="#A6ADC8" Margin="0,0,4,0"/>
-                                    <ProgressBar Grid.Row="0" Grid.Column="1" Value="{Binding SignalStrength}" Maximum="100" Height="4" Foreground="#A6E3A1" VerticalAlignment="Center"/>
+                            <Grid ColumnDefinitions="100,*,250" RowDefinitions="Auto">
+                                <!-- Col 0: Physical RF Channel -->
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="RF CHANNEL" FontSize="11" Foreground="#A6ADC8" LetterSpacing="1" />
+                                    <TextBlock Text="{Binding PhysicalChannel}" FontSize="28" FontWeight="Bold" Foreground="White" />
+                                </StackPanel>
+
+                                <!-- Col 1: Virtual Channels & Networks -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4" Margin="16,0">
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <TextBlock Grid.Column="0" Text="Virtual:" FontSize="13" Foreground="#A6ADC8" Width="60"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding VirtualChannels}" FontSize="13" Foreground="White" TextWrapping="Wrap" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <TextBlock Grid.Column="0" Text="Nets:" FontSize="13" Foreground="#A6ADC8" Width="60"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Networks}" FontSize="13" Foreground="White" TextWrapping="Wrap" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Col 2: Signal Metrics -->
+                                <Grid Grid.Column="2" ColumnDefinitions="40,*" RowDefinitions="Auto,Auto" VerticalAlignment="Center" Margin="16,0,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="SS" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <ProgressBar Grid.Row="0" Grid.Column="1" Value="{Binding SignalStrength}" Maximum="100" Height="8" CornerRadius="4" Foreground="#A6E3A1" Background="#313244" Margin="0,0,0,8"/>
                                     
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SNQ" FontSize="11" Foreground="#A6ADC8" Margin="0,0,4,0"/>
-                                    <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding SymbolQuality}" Maximum="100" Height="4" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SNQ" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding SymbolQuality}" Maximum="100" Height="8" CornerRadius="4" Foreground="#89B4FA" Background="#313244"/>
                                 </Grid>
-                                
-                            </StackPanel>
+                            </Grid>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
