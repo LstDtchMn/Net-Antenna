@@ -13,6 +13,10 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
+    <Window.DataTemplates>
+        <local:ViewLocator/>
+    </Window.DataTemplates>
+
     <DockPanel>
         <!-- Global Header Bar -->
         <Border DockPanel.Dock="Top" Background="#1E1E2E" Padding="16,8">
