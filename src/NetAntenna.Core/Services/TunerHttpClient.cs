@@ -47,20 +47,45 @@ public sealed class TunerHttpClient : ITunerClient, IDisposable
     public async Task<TunerStatus> GetTunerStatusAsync(
         string baseUrl, int tunerIndex, CancellationToken ct = default)
     {
-        var url = $"{NormalizeUrl(baseUrl)}/tuners.html?page=tuner{tunerIndex}";
-
-        // Try the /tuner{n}/status endpoint first (key=value format)
         try
         {
-            var statusUrl = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/status";
-            var text = await _http.GetStringAsync(statusUrl, ct);
-            return TunerStatus.Parse(text);
+            var jsonUrl = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/status.json";
+            var doc = await _http.GetFromJsonAsync<JsonDocument>(jsonUrl, ct);
+            if (doc != null && doc.RootElement.ValueKind != JsonValueKind.Null)
+            {
+                var root = doc.RootElement;
+                return new TunerStatus
+                {
+                    Channel = root.TryGetProperty("VctNumber", out var vct) ? vct.GetString() ?? "" : "",
+                    Lock = root.TryGetProperty("Lock", out var lck) ? lck.GetString() ?? "none" : "none",
+                    SignalStrength = root.TryGetProperty("SignalStrength", out var ss) ? ss.GetInt32() : 0,
+                    SignalToNoiseQuality = root.TryGetProperty("SignalToNoiseQuality", out var snq) ? snq.GetInt32() : 0,
+                    SymbolQuality = root.TryGetProperty("SymbolQuality", out var seq) ? seq.GetInt32() : 0,
+                    BitsPerSecond = root.TryGetProperty("Bitrate", out var bps) ? bps.GetInt64() : 0,
+                    PacketsPerSecond = 0
+                };
+            }
         }
         catch (HttpRequestException)
         {
-            // Some older firmware may not support this endpoint
-            return new TunerStatus();
+            // Some models might only support the old line-based /status endpoint
+            try
+            {
+                var statusUrl = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/status";
+                var text = await _http.GetStringAsync(statusUrl, ct);
+                return TunerStatus.Parse(text);
+            }
+            catch (Exception)
+            {
+                // Fallback completely
+            }
         }
+        catch (Exception)
+        {
+            // Fallback
+        }
+
+        return new TunerStatus();
     }
 
     /// <inheritdoc />

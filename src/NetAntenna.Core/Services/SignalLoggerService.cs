@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using NetAntenna.Core.Data;
 using NetAntenna.Core.Models;
 
@@ -11,6 +12,7 @@ public sealed class SignalLoggerService : ISignalLogger, IDisposable
 {
     private readonly ITunerClient _tunerClient;
     private readonly IDatabaseService _database;
+    private readonly ILogger<SignalLoggerService> _logger;
 
     private CancellationTokenSource? _cts;
     private Task? _pollingTask;
@@ -25,10 +27,11 @@ public sealed class SignalLoggerService : ISignalLogger, IDisposable
 
     public bool IsRunning { get; private set; }
 
-    public SignalLoggerService(ITunerClient tunerClient, IDatabaseService database)
+    public SignalLoggerService(ITunerClient tunerClient, IDatabaseService database, ILogger<SignalLoggerService> logger)
     {
         _tunerClient = tunerClient;
         _database = database;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -88,6 +91,7 @@ public sealed class SignalLoggerService : ISignalLogger, IDisposable
                     try
                     {
                         var status = await _tunerClient.GetTunerStatusAsync(baseUrl, i, ct);
+                        _logger.LogInformation("Polled tuner {Index}: Ch {Channel}, Lock {Lock}, SS {SS}", i, status.Channel, status.Lock, status.SignalStrength);
                         var sample = SignalSample.FromTunerStatus(deviceId, i, status);
 
                         // Raise event for real-time UI updates
@@ -99,13 +103,19 @@ public sealed class SignalLoggerService : ISignalLogger, IDisposable
                             _sampleBuffer.Add(sample);
                         }
                     }
-                    catch (HttpRequestException)
+                    catch (HttpRequestException ex)
                     {
+                        _logger.LogWarning(ex, "Tuner {Index} is temporarily unreachable.", i);
                         // Tuner may be temporarily unreachable; skip this poll
                     }
                     catch (TaskCanceledException)
                     {
+                        _logger.LogWarning("Tuner {Index} request timed out.", i);
                         // Timeout or cancellation; skip
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Unexpected error polling tuner {Index}", i);
                     }
                 }
 
@@ -129,8 +139,9 @@ public sealed class SignalLoggerService : ISignalLogger, IDisposable
             {
                 break;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Critical error in PollLoopAsync. Waiting 5 seconds before retrying.");
                 // Log error but don't crash the polling loop
                 // Wait a bit before retrying
                 try
@@ -160,8 +171,9 @@ public sealed class SignalLoggerService : ISignalLogger, IDisposable
         {
             await _database.InsertSamplesAsync(samplesToFlush);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to flush sample buffer to database.");
             // If DB write fails, we lose these samples but don't crash
             // In a future version, we could retry or write to a fallback file
         }
