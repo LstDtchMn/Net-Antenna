@@ -1,12 +1,14 @@
 namespace NetAntenna.Core.Models;
 
 /// <summary>
-/// Represents the live status of a single HDHomeRun tuner, parsed from /tuner{n}/status.
-/// The status endpoint returns key=value pairs (NOT JSON).
+/// Represents the live status of a single HDHomeRun tuner, parsed from /tuner{n}/status.json (JSON, FLEX 4K)
+/// or /tuner{n}/status (legacy key=value format).
+/// NOTE: The HDHomeRun HTTP API uses Ch frequency for TUNING (/tunerN/ch473000000)
+/// but returns modulation-prefixed notation in status responses (e.g. Ch = "8vsb:473000000").
 /// </summary>
 public sealed class TunerStatus
 {
-    /// <summary>Requested channel (e.g., "8vsb:7").</summary>
+    /// <summary>Currently locked channel as reported by device (e.g., "8vsb:473000000").</summary>
     public string Channel { get; set; } = string.Empty;
 
     /// <summary>Actual modulation lock type (e.g., "8vsb", "qam256", "none").</summary>

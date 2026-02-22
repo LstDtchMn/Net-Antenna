@@ -23,7 +23,12 @@ public interface ITunerClient
     Task SetChannelVisibilityAsync(
         string baseUrl, string guideNumber, bool visible, CancellationToken ct = default);
 
-    /// <summary>POST /tuner{n}/target — Set the physical tuner channel (e.g. "8vsb:14").</summary>
+    /// <summary>
+    /// Tune a specific tuner by opening a streaming GET to /tunerN/ch&lt;freq_hz&gt;.
+    /// The HDHomeRun HTTP API has no POST endpoint for channel control.
+    /// Pass "ch473000000" for UHF Ch14, or "ch&lt;freq&gt;" for any physical channel.
+    /// Pass "none" to release the tuner (no-op in HTTP mode; simply close the stream).
+    /// </summary>
     Task SetChannelAsync(
         string baseUrl, int tunerIndex, string channel, CancellationToken ct = default);
 
