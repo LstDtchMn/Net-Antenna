@@ -88,6 +88,11 @@ public partial class TowerMapViewModel : ViewModelBase
         {
             await _fccService.DownloadAndIndexLmsDataAsync();
             await LoadTowersAsync(); // Refresh from DB
+            LastUpdateText = DateTimeOffset.Now.ToString("g");
+        }
+        catch (Exception ex)
+        {
+            LastUpdateText = $"Error: {ex.Message}";
         }
         finally
         {

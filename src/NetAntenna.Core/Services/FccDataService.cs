@@ -7,8 +7,10 @@ namespace NetAntenna.Core.Services;
 
 public class FccDataService : IFccDataService
 {
-    // The FCC updates this daily
-    private const string LmsZipUrl = "https://enterpriseefiling.fcc.gov/dataentry/api/download/lmstv/app";
+    // FCC LMS Public Database page: https://enterpriseefiling.fcc.gov/dataentry/public/tv/lmsDatabase.html
+    private const string FacilityZipUrl = "https://enterpriseefiling.fcc.gov/dataentry/api/download/dbfile/facility.zip";
+    private const string ApplicationZipUrl = "https://enterpriseefiling.fcc.gov/dataentry/api/download/dbfile/application.zip";
+    private const string EngineeringZipUrl = "https://enterpriseefiling.fcc.gov/dataentry/api/download/dbfile/tv_app_engineering.zip";
     private readonly HttpClient _httpClient;
     private readonly IDatabaseService _db;
 
@@ -20,37 +22,50 @@ public class FccDataService : IFccDataService
 
     public async Task DownloadAndIndexLmsDataAsync(IProgress<int>? progress = null, CancellationToken ct = default)
     {
-        progress?.Report(10); // Downloading
+        progress?.Report(5); // Downloading facility data
 
-        using var response = await _httpClient.GetAsync(LmsZipUrl, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
+        // Download and parse each file separately from the new FCC LMS endpoints
+        var facilityEntry = await DownloadAndOpenZipEntry(FacilityZipUrl, "facility.dat", ct);
+        progress?.Report(25);
 
-        await using var zipStream = await response.Content.ReadAsStreamAsync(ct);
-        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
+        var appEntry = await DownloadAndOpenZipEntry(ApplicationZipUrl, "application.dat", ct);
+        progress?.Report(50);
 
-        // We need three files: facility.dat, application.dat, tv_app_engineering.dat
-        var facilityEntry = archive.GetEntry("facility.dat") ?? throw new FileNotFoundException("Missing facility.dat in LMS dump");
-        var appEntry = archive.GetEntry("application.dat") ?? throw new FileNotFoundException("Missing application.dat in LMS dump");
-        var engEntry = archive.GetEntry("tv_app_engineering.dat") ?? throw new FileNotFoundException("Missing tv_app_engineering.dat in LMS dump");
-
-        progress?.Report(30); // Parsing Facilities
+        var engEntry = await DownloadAndOpenZipEntry(EngineeringZipUrl, "tv_app_engineering.dat", ct);
+        progress?.Report(70);
 
         var facilities = await ParseFacilitiesAsync(facilityEntry, ct);
-        
-        progress?.Report(50); // Parsing Applications
-
         var applications = await ParseApplicationsAsync(appEntry, ct);
-
-        progress?.Report(70); // Parsing Engineering Data
-
         var towers = await ParseEngineeringDataAsync(engEntry, facilities, applications, ct);
 
         progress?.Report(90); // Saving to DB
-
         await _db.ReplaceFccTowersAsync(towers);
         await _db.SetSettingAsync("fcc_last_updated_unix_ms", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString());
 
         progress?.Report(100); // Done
+    }
+
+    private async Task<Stream> DownloadAndOpenZipEntry(string url, string entryName, CancellationToken ct)
+    {
+        using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+
+        // The zip is small enough to buffer in memory so we can dispose the response
+        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+        var ms = new MemoryStream(bytes);
+        var archive = new ZipArchive(ms, ZipArchiveMode.Read, leaveOpen: false);
+
+        // The entry might be at root level or inside a sub-folder
+        var entry = archive.GetEntry(entryName)
+            ?? archive.Entries.FirstOrDefault(e => e.Name.Equals(entryName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new FileNotFoundException($"Could not find '{entryName}' inside zip from {url}. Available: {string.Join(", ", archive.Entries.Select(e => e.Name))}");
+
+        // Extract to a MemoryStream so the ZipArchive can be disposed safely
+        var result = new MemoryStream();
+        await using var entryStream = entry.Open();
+        await entryStream.CopyToAsync(result, ct);
+        result.Position = 0;
+        return result;
     }
 
     public async Task<DateTimeOffset?> GetLastUpdateDateAsync(CancellationToken ct = default)
@@ -63,11 +78,10 @@ public class FccDataService : IFccDataService
         return null;
     }
 
-    private static async Task<Dictionary<int, (string CallSign, string City, string State)>> ParseFacilitiesAsync(ZipArchiveEntry entry, CancellationToken ct)
+    private static async Task<Dictionary<int, (string CallSign, string City, string State)>> ParseFacilitiesAsync(Stream stream, CancellationToken ct)
     {
         // Extracts Facility ID -> (Call Sign, City, State)
         var dict = new Dictionary<int, (string CallSign, string City, string State)>();
-        await using var stream = entry.Open();
         using var reader = new StreamReader(stream);
 
         while (await reader.ReadLineAsync(ct) is { } line)
@@ -82,12 +96,11 @@ public class FccDataService : IFccDataService
         return dict;
     }
 
-    private static async Task<Dictionary<string, int>> ParseApplicationsAsync(ZipArchiveEntry entry, CancellationToken ct)
+    private static async Task<Dictionary<string, int>> ParseApplicationsAsync(Stream stream, CancellationToken ct)
     {
         // Extracts Application ID -> Facility ID
         // We only care about active/granted licenses (status = 'G' or 'LIC')
         var dict = new Dictionary<string, int>();
-        await using var stream = entry.Open();
         using var reader = new StreamReader(stream);
 
         while (await reader.ReadLineAsync(ct) is { } line)
@@ -109,7 +122,7 @@ public class FccDataService : IFccDataService
     }
 
     private static async Task<List<FccTower>> ParseEngineeringDataAsync(
-        ZipArchiveEntry engEntry, 
+        Stream engStream, 
         IReadOnlyDictionary<int, (string CallSign, string City, string State)> facilities, 
         IReadOnlyDictionary<string, int> applications,
         CancellationToken ct)
@@ -117,8 +130,7 @@ public class FccDataService : IFccDataService
         var towers = new List<FccTower>();
         var addedFacIds = new HashSet<int>();
 
-        await using var stream = engEntry.Open();
-        using var reader = new StreamReader(stream);
+        using var reader = new StreamReader(engStream);
 
         while (await reader.ReadLineAsync(ct) is { } line)
         {
