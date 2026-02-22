@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NetAntenna.Core/NetAntenna.Core.csproj" />
+    <Project Path="src/NetAntenna.Desktop/NetAntenna.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NetAntenna.Core.Tests/NetAntenna.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+             xmlns:local="using:NetAntenna.Desktop"
+             x:Class="NetAntenna.Desktop.Views.ChannelManagerView"
+             x:DataType="vm:ChannelManagerViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <TextBlock Text="📺 Channel Manager" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Separator Width="1" Background="#313244" Margin="8,0"/>
+            <Button Content="🔄 Refresh" Command="{Binding LoadChannelsCommand}" Padding="10,5" CornerRadius="4"/>
+            <Button Content="🚫 Hide Weak Channels" Command="{Binding HideWeakChannelsCommand}"
+                    Padding="10,5" CornerRadius="4" Background="#F44336" Foreground="White"/>
+            <Button Content="💾 Export Config" Command="{Binding ExportChannelConfigCommand}"
+                    Padding="10,5" CornerRadius="4"/>
+
+            <TextBlock Text="Weak threshold:" VerticalAlignment="Center" Foreground="#B0B0B0" Margin="16,0,4,0"/>
+            <NumericUpDown Value="{Binding WeakThreshold}" Minimum="0" Maximum="100"
+                           Width="80" FormatString="0'%'"/>
+        </StackPanel>
+
+        <!-- Channel List -->
+        <Border Grid.Row="1" Background="#1E1E2E" CornerRadius="8" Padding="1">
+            <DataGrid ItemsSource="{Binding Channels}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserSortColumns="True"
+                      CanUserResizeColumns="True"
+                      GridLinesVisibility="Horizontal"
+                      BorderThickness="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Ch #" Binding="{Binding GuideNumber}" Width="70"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding GuideName}" Width="*"/>
+                    <DataGridTemplateColumn Header="⭐" Width="50">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding IsFavorite, Converter={x:Static local:Converters.BoolToStar}}"
+                                        Background="Transparent" BorderThickness="0" Padding="4"
+                                        HorizontalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="👁" Width="50">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding IsHidden, Converter={x:Static local:Converters.BoolToEye}}"
+                                        Background="Transparent" BorderThickness="0" Padding="4"
+                                        HorizontalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="SS" Binding="{Binding LastSs}" Width="60"/>
+                    <DataGridTextColumn Header="SNQ" Binding="{Binding LastSnq}" Width="60"/>
+                    <DataGridTextColumn Header="SEQ" Binding="{Binding LastSeq}" Width="60"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- Footer Status -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+            <TextBlock Text="{Binding Channels.Count, StringFormat='Total: {0} channels'}"
+                       Foreground="#808080" FontSize="12"/>
+            <ProgressBar IsVisible="{Binding IsLoading}" IsIndeterminate="True" Width="100"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

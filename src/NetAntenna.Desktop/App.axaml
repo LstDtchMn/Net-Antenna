@@ -1,0 +1,23 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="NetAntenna.Desktop.App"
+             xmlns:local="using:NetAntenna.Desktop"
+             RequestedThemeVariant="Dark">
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+    <Application.Resources>
+        <!-- Signal quality color tokens -->
+        <Color x:Key="SignalGoodColor">#4CAF50</Color>
+        <Color x:Key="SignalMarginalColor">#FFC107</Color>
+        <Color x:Key="SignalPoorColor">#F44336</Color>
+        <Color x:Key="SignalNoneColor">#757575</Color>
+        <Color x:Key="AccentCyan">#00BCD4</Color>
+    </Application.Resources>
+</Application>

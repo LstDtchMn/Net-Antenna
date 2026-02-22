@@ -1,0 +1,123 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+             x:Class="NetAntenna.Desktop.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <StackPanel Spacing="16" MaxWidth="700" Margin="0,0,16,0">
+
+            <!-- Devices Section -->
+            <Border Background="#1E1E2E" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="🔌 Devices" FontSize="16" FontWeight="SemiBold"/>
+                    <Separator Background="#313244"/>
+
+                    <ItemsControl ItemsSource="{Binding Devices}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#181825" CornerRadius="4" Padding="12" Margin="0,4">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding FriendlyName}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding ModelNumber}" Foreground="#808080" FontSize="12"/>
+                                            <TextBlock Text="{Binding IpAddress, StringFormat='IP: {0}'}" Foreground="#808080" FontSize="12"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1" Text="{Binding DeviceId}"
+                                                   Foreground="#505050" FontSize="11" VerticalAlignment="Center"
+                                                   FontFamily="Consolas"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                        <TextBox Watermark="Manual IP address (e.g., 192.168.1.100)"
+                                 Text="{Binding ManualIpAddress}" Width="300"/>
+                        <Button Content="Add Device" Command="{Binding AddManualDeviceCommand}" Padding="10,5" CornerRadius="4"/>
+                        <Button Content="🔄 Rescan" Command="{Binding RescanDevicesCommand}" Padding="10,5" CornerRadius="4"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Polling Section -->
+            <Border Background="#1E1E2E" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="📊 Signal Polling" FontSize="16" FontWeight="SemiBold"/>
+                    <Separator Background="#313244"/>
+
+                    <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Polling Interval" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Slider Value="{Binding PollingIntervalSec}" Minimum="1" Maximum="60" Width="200"
+                                    TickFrequency="1" IsSnapToTickEnabled="True"/>
+                            <TextBlock Text="{Binding PollingIntervalSec, StringFormat='{}{0}s'}"
+                                       VerticalAlignment="Center" Width="30"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Data Retention" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Slider Value="{Binding DataRetentionDays}" Minimum="7" Maximum="365" Width="200"
+                                    TickFrequency="1" IsSnapToTickEnabled="True"/>
+                            <TextBlock Text="{Binding DataRetentionDays, StringFormat='{}{0} days'}"
+                                       VerticalAlignment="Center" Width="60"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Weak SEQ Threshold" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <NumericUpDown Value="{Binding SeqThresholdWeak}" Minimum="0" Maximum="100" Width="100"/>
+                            <TextBlock Text="%" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Good SEQ Threshold" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <NumericUpDown Value="{Binding SeqThresholdGood}" Minimum="0" Maximum="100" Width="100"/>
+                            <TextBlock Text="%" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Antenna Profile Section -->
+            <Border Background="#1E1E2E" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="📡 Antenna Profile" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="Used for signal prediction in Phase 2" Foreground="#808080" FontSize="12"/>
+                    <Separator Background="#313244"/>
+
+                    <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Antenna Type" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AntennaTypes}"
+                                  SelectedItem="{Binding AntennaType}" MinWidth="250"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Height (ft AGL)" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AntennaHeightFt}"
+                                 Watermark="e.g., 25" Width="100"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Actions -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="💾 Save Settings" Command="{Binding SaveSettingsCommand}"
+                        Padding="14,8" CornerRadius="4" Background="#00BCD4" Foreground="White"/>
+                <Button Content="🗑 Purge Old Data" Command="{Binding PurgeOldDataCommand}"
+                        Padding="14,8" CornerRadius="4"/>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#4CAF50"
+                           VerticalAlignment="Center" Margin="16,0,0,0"/>
+            </StackPanel>
+
+            <!-- About Section -->
+            <Border Background="#1E1E2E" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="ℹ About" FontSize="16" FontWeight="SemiBold"/>
+                    <Separator Background="#313244"/>
+                    <TextBlock Text="{Binding AppVersion, StringFormat='Net Antenna v{0}'}" Foreground="#B0B0B0"/>
+                    <TextBlock Text="Open Source — MIT License" Foreground="#808080" FontSize="12"/>
+                    <TextBlock Text="github.com/LstDtchMn/Net-Antenna" Foreground="#00BCD4" FontSize="12"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

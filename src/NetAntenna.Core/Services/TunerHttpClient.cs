@@ -1,0 +1,115 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using NetAntenna.Core.Models;
+
+namespace NetAntenna.Core.Services;
+
+/// <summary>
+/// HTTP client for communicating with HDHomeRun device REST endpoints.
+/// All calls have a 5-second timeout to prevent UI freezes on unreachable devices.
+/// </summary>
+public sealed class TunerHttpClient : ITunerClient, IDisposable
+{
+    private readonly HttpClient _http;
+
+    public TunerHttpClient(HttpClient? httpClient = null)
+    {
+        _http = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+    }
+
+    /// <inheritdoc />
+    public async Task<HdHomeRunDevice> GetDeviceInfoAsync(
+        string baseUrl, CancellationToken ct = default)
+    {
+        var url = $"{NormalizeUrl(baseUrl)}/discover.json";
+        var device = await _http.GetFromJsonAsync<HdHomeRunDevice>(url, ct)
+            ?? throw new InvalidOperationException($"No response from {url}");
+
+        // Extract IP from the base URL for convenience
+        if (Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+            device.IpAddress = uri.Host;
+
+        device.LastSeenUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        return device;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ChannelInfo>> GetLineupAsync(
+        string baseUrl, CancellationToken ct = default)
+    {
+        var url = $"{NormalizeUrl(baseUrl)}/lineup.json";
+        var channels = await _http.GetFromJsonAsync<List<ChannelInfo>>(url, ct)
+            ?? new List<ChannelInfo>();
+        return channels;
+    }
+
+    /// <inheritdoc />
+    public async Task<TunerStatus> GetTunerStatusAsync(
+        string baseUrl, int tunerIndex, CancellationToken ct = default)
+    {
+        var url = $"{NormalizeUrl(baseUrl)}/tuners.html?page=tuner{tunerIndex}";
+
+        // Try the /tuner{n}/status endpoint first (key=value format)
+        try
+        {
+            var statusUrl = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/status";
+            var text = await _http.GetStringAsync(statusUrl, ct);
+            return TunerStatus.Parse(text);
+        }
+        catch (HttpRequestException)
+        {
+            // Some older firmware may not support this endpoint
+            return new TunerStatus();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task SetChannelVisibilityAsync(
+        string baseUrl, string guideNumber, bool visible, CancellationToken ct = default)
+    {
+        var url = $"{NormalizeUrl(baseUrl)}/lineup.post";
+        var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["favorite"] = guideNumber,
+            // HDHomeRun uses "x" to hide and "-" to show in some firmware versions
+            // The exact POST parameter depends on firmware; this covers common cases
+        });
+
+        // The lineup.post endpoint uses form-encoded POST data
+        // To hide: POST /lineup.post?hide=<channel>
+        // To show: POST /lineup.post?hide=-<channel>
+        var hideUrl = visible
+            ? $"{NormalizeUrl(baseUrl)}/lineup.post?show={guideNumber}"
+            : $"{NormalizeUrl(baseUrl)}/lineup.post?hide={guideNumber}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, hideUrl);
+        var response = await _http.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <inheritdoc />
+    public async Task SetChannelFavoriteAsync(
+        string baseUrl, string guideNumber, bool favorite, CancellationToken ct = default)
+    {
+        var favoriteUrl = favorite
+            ? $"{NormalizeUrl(baseUrl)}/lineup.post?favorite={guideNumber}"
+            : $"{NormalizeUrl(baseUrl)}/lineup.post?favorite=-{guideNumber}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, favoriteUrl);
+        var response = await _http.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private static string NormalizeUrl(string baseUrl)
+    {
+        var url = baseUrl.TrimEnd('/');
+        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            url = $"http://{url}";
+        }
+        return url;
+    }
+
+    public void Dispose() => _http.Dispose();
+}

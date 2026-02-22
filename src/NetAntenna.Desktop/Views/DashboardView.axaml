@@ -1,0 +1,108 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+             xmlns:local="using:NetAntenna.Desktop"
+             xmlns:sp="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
+             x:Class="NetAntenna.Desktop.Views.DashboardView"
+             x:DataType="vm:DashboardViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Top Pane: Signal Tiles -->
+        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,*,*,Auto">
+
+                <!-- Signal Strength Tile -->
+                <StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock Text="SS" FontSize="14" Foreground="#B0B0B0" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding SignalStrength, StringFormat='{}{0}%'}"
+                               FontSize="36" FontWeight="Bold"
+                               Foreground="{Binding SsColor, Converter={x:Static local:Converters.StringToBrush}}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Signal Strength" FontSize="11" Foreground="#808080" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Signal-to-Noise Quality Tile -->
+                <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" Margin="4,0">
+                    <TextBlock Text="SNQ" FontSize="14" Foreground="#B0B0B0" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding SignalToNoiseQuality, StringFormat='{}{0}%'}"
+                               FontSize="36" FontWeight="Bold"
+                               Foreground="{Binding SnqColor, Converter={x:Static local:Converters.StringToBrush}}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Signal Quality" FontSize="11" Foreground="#808080" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Symbol Quality Tile -->
+                <StackPanel Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" Margin="8,0,0,0">
+                    <TextBlock Text="SEQ" FontSize="14" Foreground="#B0B0B0" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding SymbolQuality, StringFormat='{}{0}%'}"
+                               FontSize="36" FontWeight="Bold"
+                               Foreground="{Binding SeqColor, Converter={x:Static local:Converters.StringToBrush}}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Symbol Quality" FontSize="11" Foreground="#808080" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Channel Info -->
+                <StackPanel Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Ch:" Foreground="#808080" FontSize="12"/>
+                        <TextBlock Text="{Binding CurrentChannel}" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Lock:" Foreground="#808080" FontSize="12"/>
+                        <TextBlock Text="{Binding LockType}" Foreground="White" FontSize="12"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Rate:" Foreground="#808080" FontSize="12"/>
+                        <TextBlock Text="{Binding Bitrate}" Foreground="White" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Controls Row -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
+                            Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+
+                    <TextBlock Text="Tuner:" VerticalAlignment="Center" Foreground="#B0B0B0"/>
+                    <ComboBox ItemsSource="{Binding AvailableTuners}"
+                              SelectedItem="{Binding SelectedTunerIndex}"
+                              MinWidth="60"/>
+
+                    <Separator Width="1" Background="#313244" Margin="8,0"/>
+
+                    <Button Content="{Binding IsLogging, Converter={x:Static local:Converters.BoolToLoggingText}}"
+                            Command="{Binding ToggleLoggingCommand}"
+                            Padding="10,5" CornerRadius="4"/>
+
+                    <Button Content="🔄 Refresh"
+                            Command="{Binding RefreshTunerStatusCommand}"
+                            Padding="10,5" CornerRadius="4"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Bottom Pane: Chart Area -->
+        <Border Grid.Row="1" Background="#1E1E2E" CornerRadius="8" Padding="16">
+            <Grid RowDefinitions="*,Auto">
+                <!-- ScottPlot Chart -->
+                <sp:AvaPlot x:Name="SignalChart" Grid.Row="0"/>
+
+                <!-- Time Window Controls -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="0,8,0,0"
+                            HorizontalAlignment="Center">
+                    <Button Content="1h" Padding="12,4" CornerRadius="4" FontSize="12"
+                            Tag="1h" Click="OnTimeWindowClick"/>
+                    <Button Content="6h" Padding="12,4" CornerRadius="4" FontSize="12"
+                            Tag="6h" Click="OnTimeWindowClick"/>
+                    <Button Content="24h" Padding="12,4" CornerRadius="4" FontSize="12"
+                            Tag="24h" Click="OnTimeWindowClick"/>
+                    <Button Content="All" Padding="12,4" CornerRadius="4" FontSize="12"
+                            Tag="All" Click="OnTimeWindowClick"/>
+
+                    <Separator Width="1" Background="#313244" Margin="8,0"/>
+
+                    <ToggleButton Content="▶ Live" IsChecked="{Binding IsLiveMode}"
+                                  Padding="12,4" CornerRadius="4" FontSize="12"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

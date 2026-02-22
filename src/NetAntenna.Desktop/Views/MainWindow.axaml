@@ -1,0 +1,95 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+        xmlns:local="using:NetAntenna.Desktop"
+        x:Class="NetAntenna.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Net Antenna"
+        Width="1280" Height="800"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <DockPanel>
+        <!-- Global Header Bar -->
+        <Border DockPanel.Dock="Top" Background="#1E1E2E" Padding="16,8">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                <!-- App Title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="📡" FontSize="20"/>
+                    <TextBlock Text="Net Antenna" FontSize="18" FontWeight="Bold" Foreground="#00BCD4"/>
+                </StackPanel>
+
+                <!-- Device Selector -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0">
+                    <TextBlock Text="Device:" VerticalAlignment="Center" Foreground="#B0B0B0"/>
+                    <ComboBox ItemsSource="{Binding Devices}"
+                              SelectedItem="{Binding SelectedDevice}"
+                              MinWidth="200" MaxWidth="300">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding FriendlyName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Connection Status -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="16,0">
+                    <Ellipse Width="10" Height="10"
+                             Fill="{Binding IsConnected, Converter={x:Static local:Converters.BoolToConnectionColor}}"/>
+                    <TextBlock Text="{Binding ConnectionStatus}" Foreground="#B0B0B0" FontSize="12"/>
+                </StackPanel>
+
+                <!-- Quick Scan Button -->
+                <Button Grid.Column="4"
+                        Content="⚡ Quick Scan"
+                        Command="{Binding QuickScanCommand}"
+                        IsEnabled="{Binding !IsScanning}"
+                        Padding="12,6"
+                        Background="#00BCD4" Foreground="White"
+                        CornerRadius="4"/>
+            </Grid>
+        </Border>
+
+        <!-- Left Navigation Sidebar -->
+        <Border DockPanel.Dock="Left" Background="#181825" Width="180" Padding="0,8">
+            <StackPanel Spacing="2">
+                <Button Content="📊  Dashboard"
+                        Command="{Binding NavigateToCommand}"
+                        CommandParameter="Dashboard"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Padding="16,10"
+                        Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=Dashboard}"
+                        CornerRadius="0"/>
+
+                <Button Content="📺  Channels"
+                        Command="{Binding NavigateToCommand}"
+                        CommandParameter="Channels"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Padding="16,10"
+                        Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=Channels}"
+                        CornerRadius="0"/>
+
+                <Button Content="⚙  Settings"
+                        Command="{Binding NavigateToCommand}"
+                        CommandParameter="Settings"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Padding="16,10"
+                        Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=Settings}"
+                        CornerRadius="0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Border Background="#11111B" Padding="16">
+            <ContentControl Content="{Binding CurrentPage}"/>
+        </Border>
+    </DockPanel>
+</Window>
