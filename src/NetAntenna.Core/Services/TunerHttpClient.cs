@@ -92,9 +92,9 @@ public sealed class TunerHttpClient : ITunerClient, IDisposable
     public async Task SetChannelAsync(
         string baseUrl, int tunerIndex, string channel, CancellationToken ct = default)
     {
-        // To set a channel via HTTP: POST /tuner{n}/target
+        // To set a channel via HTTP: POST /tuner{n}/channel (or /vchannel for virtual)
         // Body: channel=8vsb:14
-        var url = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/target";
+        var url = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/channel";
         var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["channel"] = channel

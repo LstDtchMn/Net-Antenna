@@ -73,11 +73,18 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                 
                 _logger.LogInformation("Sweeping Channel {Channel}...", ch.ChannelNumber);
                 
-                // Command tuner to tune to physical channel
-                await _tunerClient.SetChannelAsync(device.BaseUrl, 0, $"8vsb:{ch.ChannelNumber}");
-                
-                // Wait 1 second for the tuner to acquire a lock
-                await Task.Delay(1000);
+                try
+                {
+                    // Command tuner to tune to physical channel
+                    await _tunerClient.SetChannelAsync(device.BaseUrl, 0, $"8vsb:{ch.ChannelNumber}");
+                    // Wait 1 second for the tuner to acquire a lock
+                    await Task.Delay(1000);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to command tuner to channel {Channel}", ch.ChannelNumber);
+                    continue; // Skip trying to read status if tuning failed
+                }
 
                 var status = await _tunerClient.GetTunerStatusAsync(device.BaseUrl, 0);
                 if (status != null)
@@ -114,7 +121,14 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
             // Release tuner
             if (device != null)
             {
-                await _tunerClient.SetChannelAsync(device.BaseUrl, 0, "none");
+                try
+                {
+                    await _tunerClient.SetChannelAsync(device.BaseUrl, 0, "none");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to release tuner 0.");
+                }
             }
 
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
