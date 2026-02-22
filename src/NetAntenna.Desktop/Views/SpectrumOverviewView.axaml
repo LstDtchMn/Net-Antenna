@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+             xmlns:local="using:NetAntenna.Desktop"
              x:Class="NetAntenna.Desktop.Views.SpectrumOverviewView"
              x:DataType="vm:SpectrumOverviewViewModel">
 
@@ -47,7 +48,7 @@
                         <Border Width="120" Height="100" Margin="4" CornerRadius="8" Background="#181825" BorderThickness="1">
                             <!-- Color code the border based on Lock -->
                             <Border.BorderBrush>
-                                <SolidColorBrush Color="{Binding HasLock, Converter={StaticResource LockToColorConverter}}"/>
+                                <SolidColorBrush Color="{Binding HasLock, Converter={x:Static local:Converters.LockToColor}}"/>
                             </Border.BorderBrush>
                             
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
