@@ -71,14 +71,14 @@
                                 <SolidColorBrush Color="{Binding HasLock, Converter={x:Static local:Converters.LockToColor}}"/>
                             </Border.BorderBrush>
                             
-                            <Grid ColumnDefinitions="100,*,250" RowDefinitions="Auto">
+                            <Grid ColumnDefinitions="100,*,300" RowDefinitions="Auto">
                                 <!-- Col 0: Physical RF Channel -->
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Text="RF CHANNEL" FontSize="11" Foreground="#A6ADC8" LetterSpacing="1" />
                                     <TextBlock Text="{Binding PhysicalChannel}" FontSize="28" FontWeight="Bold" Foreground="White" />
                                 </StackPanel>
 
-                                <!-- Col 1: Virtual Channels & Networks -->
+                                <!-- Col 1: Virtual Channels, Networks & Location -->
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4" Margin="16,0">
                                     <Grid ColumnDefinitions="Auto, *">
                                         <TextBlock Grid.Column="0" Text="Virtual:" FontSize="13" Foreground="#A6ADC8" Width="60"/>
@@ -88,15 +88,23 @@
                                         <TextBlock Grid.Column="0" Text="Nets:" FontSize="13" Foreground="#A6ADC8" Width="60"/>
                                         <TextBlock Grid.Column="1" Text="{Binding Networks}" FontSize="13" Foreground="White" TextWrapping="Wrap" />
                                     </Grid>
+                                    <Grid ColumnDefinitions="Auto, *">
+                                        <TextBlock Grid.Column="0" Text="Tower:" FontSize="13" Foreground="#A6ADC8" Width="60"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding LocationInfo}" FontSize="13" Foreground="#89B4FA" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    </Grid>
                                 </StackPanel>
 
                                 <!-- Col 2: Signal Metrics -->
-                                <Grid Grid.Column="2" ColumnDefinitions="40,*" RowDefinitions="Auto,Auto" VerticalAlignment="Center" Margin="16,0,0,0">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="SS" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <ProgressBar Grid.Row="0" Grid.Column="1" Value="{Binding SignalStrength}" Maximum="100" Height="8" CornerRadius="4" Foreground="#A6E3A1" Background="#313244" Margin="0,0,0,8"/>
+                                <Grid Grid.Column="2" ColumnDefinitions="100,*,40" RowDefinitions="Auto,Auto" VerticalAlignment="Center" Margin="16,0,0,0">
+                                    <!-- Signal Strength -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Signal Strength" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <ProgressBar Grid.Row="0" Grid.Column="1" Value="{Binding SignalStrength}" Maximum="100" Height="8" CornerRadius="4" Foreground="#A6E3A1" Background="#313244" Margin="0,0,8,8"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SignalStrength, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold" Foreground="#A6E3A1" VerticalAlignment="Center" Margin="0,0,0,8" TextAlignment="Right"/>
                                     
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SNQ" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <!-- Signal Quality -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Signal Quality" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding SymbolQuality}" Maximum="100" Height="8" CornerRadius="4" Foreground="#89B4FA" Background="#313244"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SymbolQuality, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold" Foreground="#89B4FA" VerticalAlignment="Center" TextAlignment="Right"/>
                                 </Grid>
                             </Grid>
                         </Border>

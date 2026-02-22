@@ -11,6 +11,7 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
 {
     private readonly ITunerClient _tunerClient;
     private readonly IDatabaseService _db;
+    private readonly IRfPredictionEngine _predictionEngine;
     private readonly ILogger<SpectrumOverviewViewModel> _logger;
 
     [ObservableProperty] private bool _isSweeping;
@@ -25,10 +26,12 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
     public SpectrumOverviewViewModel(
         ITunerClient tunerClient, 
         IDatabaseService db, 
+        IRfPredictionEngine predictionEngine,
         ILogger<SpectrumOverviewViewModel> logger)
     {
         _tunerClient = tunerClient;
         _db = db;
+        _predictionEngine = predictionEngine;
         _logger = logger;
     }
 
@@ -38,6 +41,23 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
         if (IsSweeping) return;
 
         _logger.LogInformation("Starting Spectrum Sweep via lineup.json...");
+        
+        // 1. Fetch User Coordinates
+        var latStr = await _db.GetSettingAsync("user_lat");
+        var lonStr = await _db.GetSettingAsync("user_lng");
+        double userLat = 39.8283;
+        double userLon = -98.5795;
+        if (double.TryParse(latStr, out var uLat) && double.TryParse(lonStr, out var uLon))
+        {
+            userLat = uLat;
+            userLon = uLon;
+        }
+
+        // 2. Load and index FCC Towers by Transmit Channel
+        var towers = await _db.GetAllFccTowersAsync();
+        var towersByChannel = towers.ToLookup(t => t.TransmitChannel);
+
+        // 3. Find Device
         var devices = await _db.GetAllDevicesAsync();
         var device = devices.FirstOrDefault();
         if (device == null)
@@ -128,6 +148,25 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                         ch.HasLock = group.HasLock;
                         ch.VirtualChannels = string.Join(", ", group.VirtualChannels);
                         ch.Networks = string.Join(", ", group.Networks);
+
+                        // Find the most powerful assigned FCC tower for this channel
+                        var bestTower = towersByChannel[ch.PhysicalChannel]
+                            .OrderByDescending(t => t.ErpKw)
+                            .FirstOrDefault();
+
+                        if (bestTower != null)
+                        {
+                            var dist = _predictionEngine.CalculateDistanceKm(userLat, userLon, bestTower.Latitude, bestTower.Longitude);
+                            var bearing = _predictionEngine.CalculateBearingDegrees(userLat, userLon, bestTower.Latitude, bestTower.Longitude);
+                            
+                            // Convert distance to Miles for US display
+                            var distMiles = dist * 0.621371;
+                            ch.LocationInfo = $"{distMiles:F1} miles away at {Math.Round(bearing)}°";
+                        }
+                        else
+                        {
+                            ch.LocationInfo = "Location Unknown";
+                        }
                     }
                     ProgressPercent = (int)((i + 1) / (float)Channels.Count * 100);
                 }
@@ -219,6 +258,7 @@ public partial class PhysicalChannelGroup : ObservableObject
     [ObservableProperty] private bool _hasLock;
     [ObservableProperty] private string _virtualChannels = "";
     [ObservableProperty] private string _networks = "";
+    [ObservableProperty] private string _locationInfo = "Loading...";
 }
 
 internal class PhysicalChannelBuilder
