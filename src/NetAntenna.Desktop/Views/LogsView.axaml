@@ -8,7 +8,7 @@
         
         <!-- Header Controls -->
         <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
                 
                 <StackPanel Grid.Column="0" Spacing="4">
                     <TextBlock Text="System Logs" FontSize="20" FontWeight="SemiBold" Foreground="White" />
@@ -17,9 +17,13 @@
 
                 <TextBox Grid.Column="1" Text="{Binding SearchText}" Watermark="🔎 Search logs..." Width="250" VerticalAlignment="Center" Margin="16,0"/>
 
-                <ToggleButton Grid.Column="2" Content="Auto-Scroll" IsChecked="{Binding AutoScroll}" Padding="12,8" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                <ToggleButton Grid.Column="2" Content="Auto-Scroll" IsChecked="{Binding AutoScroll}" Padding="12,8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                
+                <ToggleButton Grid.Column="3" Content="Clear on Start" IsChecked="{Binding ClearOnStartup}" Padding="12,8" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip.Tip="Clear all logs each time this tab is opened"/>
 
-                <Button Grid.Column="3" Content="🗑 Clear" Command="{Binding ClearLogsCommand}" Padding="16,8" VerticalAlignment="Center" Background="#F38BA8" Foreground="Black" FontWeight="Bold"/>
+                <Button Grid.Column="4" Content="📋 Copy" Command="{Binding CopyLogsCommand}" Padding="12,8" Margin="0,0,8,0" VerticalAlignment="Center" Background="#313244" Foreground="White" FontWeight="Bold" ToolTip.Tip="Copy all visible logs to clipboard"/>
+
+                <Button Grid.Column="5" Content="🗑 Clear" Command="{Binding ClearLogsCommand}" Padding="16,8" VerticalAlignment="Center" Background="#F38BA8" Foreground="Black" FontWeight="Bold"/>
 
             </Grid>
         </Border>

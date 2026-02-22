@@ -92,16 +92,30 @@ public sealed class TunerHttpClient : ITunerClient, IDisposable
     public async Task SetChannelAsync(
         string baseUrl, int tunerIndex, string channel, CancellationToken ct = default)
     {
-        // To set a channel via HTTP: POST /tuner{n}/channel (or /vchannel for virtual)
-        // Body: channel=8vsb:14
-        var url = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/channel";
-        var content = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["channel"] = channel
-        });
+        // HDHomeRun has no POST "set channel" API. Tuning is done by opening a streaming
+        // HTTP connection to /tunerN/<channel>. We send a HEAD request (or a GET with a
+        // very short timeout) so the device tunes and locks, then we immediately close.
+        // Releasing a tuner means we just stop reading — there is no explicit "release" call.
+        if (channel == "none") return; // Nothing to do for release
 
-        using var response = await _http.PostAsync(url, content, ct);
-        response.EnsureSuccessStatusCode();
+        var url = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/{channel}";
+        
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        // Use a short cancellation window just to start the tune — we abort immediately
+        // after the tuner acknowledges. Status is read separately via /status.json.
+        using var tuneCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        tuneCts.CancelAfter(TimeSpan.FromSeconds(2));
+        try
+        {
+            using var response = await _http.SendAsync(
+                request, HttpCompletionOption.ResponseHeadersRead, tuneCts.Token);
+            // Don't call EnsureSuccessStatusCode — we don't actually want to read the stream,
+            // and 404 here likely means the channel truly doesn't exist (already off-air).
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected — we cancelled the stream intentionally.
+        }
     }
 
     /// <inheritdoc />

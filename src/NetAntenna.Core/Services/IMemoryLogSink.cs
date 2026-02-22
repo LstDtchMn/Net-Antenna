@@ -17,4 +17,5 @@ public interface IMemoryLogSink
 {
     event EventHandler<LogEntry> OnLogReceived;
     IEnumerable<LogEntry> GetRecentLogs(int count = 1000);
+    void Clear();
 }

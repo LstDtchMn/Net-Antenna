@@ -39,6 +39,14 @@ public class MemoryLogProvider : ILoggerProvider, IMemoryLogSink
         OnLogReceived?.Invoke(this, entry);
     }
 
+    public void Clear()
+    {
+        lock (_lock)
+        {
+            _logs.Clear();
+        }
+    }
+
     public void Dispose()
     {
     }
