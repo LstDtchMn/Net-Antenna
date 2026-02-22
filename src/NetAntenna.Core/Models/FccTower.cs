@@ -17,6 +17,16 @@ public record FccTower
     public string CallSign { get; init; } = string.Empty;
 
     /// <summary>
+    /// The licensed city of operation
+    /// </summary>
+    public string City { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The licensed state of operation (2-letter abbreviation)
+    /// </summary>
+    public string State { get; init; } = string.Empty;
+
+    /// <summary>
     /// Physical transmission channel (e.g., 7) 
     /// Note: This is NOT the "virtual" guide number (e.g., 7.1)
     /// </summary>

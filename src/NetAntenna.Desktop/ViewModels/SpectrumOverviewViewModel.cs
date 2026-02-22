@@ -110,6 +110,12 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                 group.BestSq = Math.Max(group.BestSq, sq);
                 group.HasLock |= hasLock;
 
+                // Check for ATSC 3.0 (HEVC/AC4) and DRM
+                if (ch.VideoCodec == "HEVC" || ch.AudioCodec == "AC4")
+                    group.HasAtsc3 = true;
+                if (ch.DRM == 1)
+                    group.HasDrm = true;
+
                 // Collect the networks and virtual channels
                 if (!string.IsNullOrWhiteSpace(ch.GuideNumber))
                     group.VirtualChannels.Add(ch.GuideNumber);
@@ -146,6 +152,8 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                         ch.SignalStrength = group.BestSs;
                         ch.SymbolQuality = group.BestSq;
                         ch.HasLock = group.HasLock;
+                        ch.HasAtsc3 = group.HasAtsc3;
+                        ch.HasDrm = group.HasDrm;
                         ch.VirtualChannels = string.Join(", ", group.VirtualChannels);
                         ch.Networks = string.Join(", ", group.Networks);
 
@@ -161,7 +169,16 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                             
                             // Convert distance to Miles for US display
                             var distMiles = dist * 0.621371;
-                            ch.LocationInfo = $"{distMiles:F1} miles away at {Math.Round(bearing)}°";
+
+                            var cityState = "";
+                            if (!string.IsNullOrWhiteSpace(bestTower.City))
+                            {
+                                cityState = bestTower.State != "" 
+                                    ? $"{bestTower.City}, {bestTower.State} — " 
+                                    : $"{bestTower.City} — ";
+                            }
+
+                            ch.LocationInfo = $"{cityState}{distMiles:F1} miles away at {Math.Round(bearing)}°";
                         }
                         else
                         {
@@ -256,6 +273,8 @@ public partial class PhysicalChannelGroup : ObservableObject
     [ObservableProperty] private int _signalStrength;
     [ObservableProperty] private int _symbolQuality;
     [ObservableProperty] private bool _hasLock;
+    [ObservableProperty] private bool _hasAtsc3;
+    [ObservableProperty] private bool _hasDrm;
     [ObservableProperty] private string _virtualChannels = "";
     [ObservableProperty] private string _networks = "";
     [ObservableProperty] private string _locationInfo = "Loading...";
@@ -266,6 +285,8 @@ internal class PhysicalChannelBuilder
     public int BestSs { get; set; }
     public int BestSq { get; set; }
     public bool HasLock { get; set; }
+    public bool HasAtsc3 { get; set; }
+    public bool HasDrm { get; set; }
     public List<string> VirtualChannels { get; } = new();
     public List<string> Networks { get; } = new();
 }

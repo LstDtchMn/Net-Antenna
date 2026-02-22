@@ -103,7 +103,9 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
                 erp_kw              REAL,
                 haat_meters         REAL,
                 is_nextgen_tv       INTEGER,
-                service_type        TEXT
+                service_type        TEXT,
+                city                TEXT,
+                state               TEXT
             );
 
             CREATE TABLE IF NOT EXISTS schema_version (
@@ -516,9 +518,9 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
             insertCmd.CommandText = @"
                 INSERT INTO fcc_towers (
                     facility_id, call_sign, transmit_channel, latitude, longitude,
-                    erp_kw, haat_meters, is_nextgen_tv, service_type
+                    erp_kw, haat_meters, is_nextgen_tv, service_type, city, state
                 ) VALUES (
-                    $fac, $call, $chan, $lat, $lon, $erp, $haat, $nextgen, $type
+                    $fac, $call, $chan, $lat, $lon, $erp, $haat, $nextgen, $type, $city, $state
                 )";
 
             var pFac = insertCmd.Parameters.Add("$fac", SqliteType.Integer);
@@ -530,6 +532,8 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
             var pHaat = insertCmd.Parameters.Add("$haat", SqliteType.Real);
             var pNextgen = insertCmd.Parameters.Add("$nextgen", SqliteType.Integer);
             var pType = insertCmd.Parameters.Add("$type", SqliteType.Text);
+            var pCity = insertCmd.Parameters.Add("$city", SqliteType.Text);
+            var pState = insertCmd.Parameters.Add("$state", SqliteType.Text);
 
             foreach (var t in towers)
             {
@@ -542,6 +546,8 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
                 pHaat.Value = t.HaatMeters;
                 pNextgen.Value = t.IsNextGenTv ? 1 : 0;
                 pType.Value = t.ServiceType;
+                pCity.Value = t.City;
+                pState.Value = t.State;
 
                 await insertCmd.ExecuteNonQueryAsync();
             }
@@ -562,6 +568,10 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
 
         var list = new List<FccTower>();
         await using var reader = await command.ExecuteReaderAsync();
+        
+        // Ensure we don't crash if an old DB schema without city/state is read
+        var hasCityState = reader.FieldCount > 9;
+
         while (await reader.ReadAsync())
         {
             list.Add(new FccTower
@@ -574,7 +584,9 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
                 ErpKw = reader.GetDouble(5),
                 HaatMeters = reader.GetDouble(6),
                 IsNextGenTv = reader.GetInt32(7) != 0,
-                ServiceType = reader.GetString(8)
+                ServiceType = reader.GetString(8),
+                City = hasCityState && !reader.IsDBNull(9) ? reader.GetString(9) : "",
+                State = hasCityState && !reader.IsDBNull(10) ? reader.GetString(10) : ""
             });
         }
         return list;

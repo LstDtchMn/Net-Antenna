@@ -72,10 +72,18 @@
                             </Border.BorderBrush>
                             
                             <Grid ColumnDefinitions="100,*,300" RowDefinitions="Auto">
-                                <!-- Col 0: Physical RF Channel -->
+                                <!-- Col 0: Physical RF Channel & Badges -->
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Text="RF CHANNEL" FontSize="11" Foreground="#A6ADC8" LetterSpacing="1" />
                                     <TextBlock Text="{Binding PhysicalChannel}" FontSize="28" FontWeight="Bold" Foreground="White" />
+                                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
+                                        <Border Background="#F9E2AF" CornerRadius="4" Padding="4,2" IsVisible="{Binding HasAtsc3}">
+                                            <TextBlock Text="ATSC 3" FontSize="9" FontWeight="Bold" Foreground="#11111B" />
+                                        </Border>
+                                        <Border Background="#F38BA8" CornerRadius="4" Padding="4,2" IsVisible="{Binding HasDrm}">
+                                            <TextBlock Text="DRM" FontSize="9" FontWeight="Bold" Foreground="#11111B" />
+                                        </Border>
+                                    </StackPanel>
                                 </StackPanel>
 
                                 <!-- Col 1: Virtual Channels, Networks & Location -->
@@ -95,7 +103,7 @@
                                 </StackPanel>
 
                                 <!-- Col 2: Signal Metrics -->
-                                <Grid Grid.Column="2" ColumnDefinitions="100,*,40" RowDefinitions="Auto,Auto" VerticalAlignment="Center" Margin="16,0,0,0">
+                                <Grid Grid.Column="2" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" VerticalAlignment="Center" Margin="16,0,0,0">
                                     <!-- Signal Strength -->
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Signal Strength" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <ProgressBar Grid.Row="0" Grid.Column="1" Value="{Binding SignalStrength}" Maximum="100" Height="8" CornerRadius="4" Foreground="#A6E3A1" Background="#313244" Margin="0,0,8,8"/>
@@ -103,7 +111,7 @@
                                     
                                     <!-- Signal Quality -->
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Signal Quality" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding SymbolQuality}" Maximum="100" Height="8" CornerRadius="4" Foreground="#89B4FA" Background="#313244"/>
+                                    <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding SymbolQuality}" Maximum="100" Height="8" CornerRadius="4" Foreground="#89B4FA" Background="#313244" Margin="0,0,8,0"/>
                                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SymbolQuality, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold" Foreground="#89B4FA" VerticalAlignment="Center" TextAlignment="Right"/>
                                 </Grid>
                             </Grid>

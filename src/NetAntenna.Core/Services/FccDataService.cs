@@ -63,20 +63,20 @@ public class FccDataService : IFccDataService
         return null;
     }
 
-    private static async Task<Dictionary<int, string>> ParseFacilitiesAsync(ZipArchiveEntry entry, CancellationToken ct)
+    private static async Task<Dictionary<int, (string CallSign, string City, string State)>> ParseFacilitiesAsync(ZipArchiveEntry entry, CancellationToken ct)
     {
-        // Extracts Facility ID -> Call Sign
-        var dict = new Dictionary<int, string>();
+        // Extracts Facility ID -> (Call Sign, City, State)
+        var dict = new Dictionary<int, (string CallSign, string City, string State)>();
         await using var stream = entry.Open();
         using var reader = new StreamReader(stream);
 
         while (await reader.ReadLineAsync(ct) is { } line)
         {
             var parts = line.Split('|');
-            // Format: facility_id|...|call_sign|...
-            if (parts.Length > 2 && int.TryParse(parts[0], out var facId) && !string.IsNullOrWhiteSpace(parts[2]))
+            // Format: facility_id|...|call_sign|...|city|state|...
+            if (parts.Length > 5 && int.TryParse(parts[0], out var facId) && !string.IsNullOrWhiteSpace(parts[2]))
             {
-                dict[facId] = parts[2].Trim();
+                dict[facId] = (parts[2].Trim(), parts[4].Trim(), parts[5].Trim());
             }
         }
         return dict;
@@ -110,7 +110,7 @@ public class FccDataService : IFccDataService
 
     private static async Task<List<FccTower>> ParseEngineeringDataAsync(
         ZipArchiveEntry engEntry, 
-        IReadOnlyDictionary<int, string> facilities, 
+        IReadOnlyDictionary<int, (string CallSign, string City, string State)> facilities, 
         IReadOnlyDictionary<string, int> applications,
         CancellationToken ct)
     {
@@ -127,7 +127,7 @@ public class FccDataService : IFccDataService
 
             var appId = parts[0];
             if (!applications.TryGetValue(appId, out var facId)) continue;
-            if (!facilities.TryGetValue(facId, out var callSign)) continue;
+            if (!facilities.TryGetValue(facId, out var facilityInfo)) continue;
 
             // To avoid duplicates, we only keep the first (primary) engineering record for a facility
             // In a real production app, we'd rank them by application status (License > CP)
@@ -157,14 +157,16 @@ public class FccDataService : IFccDataService
             towers.Add(new FccTower
             {
                 FacilityId = facId,
-                CallSign = callSign,
+                CallSign = facilityInfo.CallSign,
                 TransmitChannel = channel,
                 Latitude = lat,
                 Longitude = lon,
                 ErpKw = erp,
                 HaatMeters = haat,
                 IsNextGenTv = false, // ATSC 3.0 parsing is complex, left as default for now
-                ServiceType = "DT"
+                ServiceType = "DT",
+                City = facilityInfo.City,
+                State = facilityInfo.State
             });
         }
 
