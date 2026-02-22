@@ -7,47 +7,56 @@
 
     <Grid RowDefinitions="Auto,*">
         <!-- Control Header -->
+        <!-- Control Header -->
         <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                    <TextBlock Text="FCC Tower Map" FontSize="20" FontWeight="SemiBold" Foreground="White" />
+            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                
+                <!-- Row 0: Title and Status -->
+                <WrapPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,12">
+                    <TextBlock Text="FCC Tower Map" FontSize="20" FontWeight="SemiBold" Foreground="White" Margin="0,0,16,0" VerticalAlignment="Center"/>
                     
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <TextBlock Text="Towers Indindexed:" Foreground="#B0B0B0" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="Towers Indexed:" Foreground="#B0B0B0" />
                         <TextBlock Text="{Binding TowerCount}" Foreground="White" FontWeight="Bold" />
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,16,0">
                         <TextBlock Text="Last Updated:" Foreground="#B0B0B0" />
                         <TextBlock Text="{Binding LastUpdateText}" Foreground="White" />
                     </StackPanel>
+                </WrapPanel>
 
-                    <Separator Width="1" Background="#313244" Margin="4,0" />
-
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <TextBox Text="{Binding SearchAddress}" Watermark="Enter your address..." Width="200" Padding="6,2" FontSize="12" />
-                        <Button Content="🔍 Find" Command="{Binding SearchAddressCommand}" IsEnabled="{Binding !IsSearchingAddress}" Padding="8,4" FontSize="12" Background="#313244" Foreground="White" CornerRadius="4" Margin="0,0,8,0"/>
-                        
-                        <TextBlock Text="Lat:" Foreground="#B0B0B0" VerticalAlignment="Center"/>
-                        <TextBox Text="{Binding UserLat}" Width="70" Padding="6,2" FontSize="12" />
-                        <TextBlock Text="Lng:" Foreground="#B0B0B0" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                        <TextBox Text="{Binding UserLng}" Width="70" Padding="6,2" FontSize="12" />
-                        <Button Content="💾 Save" Command="{Binding SaveLocationCommand}" Padding="8,4" FontSize="12" Background="#00BCD4" Foreground="White" CornerRadius="4" Margin="4,0,0,0"/>
-                    </StackPanel>
-                </StackPanel>
-
-                <Button Grid.Column="1" 
+                <!-- Row 0: Download Button -->
+                <Button Grid.Row="0" Grid.Column="1" 
                         Content="⬇️ Download FCC Data" 
                         Command="{Binding DownloadFccDataCommand}" 
                         IsEnabled="{Binding !IsUpdating}"
                         Padding="16,8"
-                        Background="#313244">
+                        Background="#313244"
+                        VerticalAlignment="Top">
                     <Button.Styles>
                         <Style Selector="Button:disabled">
                             <Setter Property="Content" Value="⏳ Downloading (takes ~30s)..." />
                         </Style>
                     </Button.Styles>
                 </Button>
+
+                <!-- Row 1: Location Controls -->
+                <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,16,8">
+                        <TextBox Text="{Binding SearchAddress}" Watermark="Enter your address..." Width="250" Padding="6,2" FontSize="12" />
+                        <Button Content="🔍 Find" Command="{Binding SearchAddressCommand}" IsEnabled="{Binding !IsSearchingAddress}" Padding="12,6" FontSize="12" Background="#313244" Foreground="White" CornerRadius="4"/>
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,0,8">
+                        <TextBlock Text="Lat:" Foreground="#B0B0B0" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding UserLat}" Width="80" Padding="6,2" FontSize="12" />
+                        <TextBlock Text="Lng:" Foreground="#B0B0B0" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        <TextBox Text="{Binding UserLng}" Width="80" Padding="6,2" FontSize="12" />
+                        <Button Content="💾 Save" Command="{Binding SaveLocationCommand}" Padding="12,6" FontSize="12" Background="#00BCD4" Foreground="White" CornerRadius="4" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </WrapPanel>
+
             </Grid>
         </Border>
 
