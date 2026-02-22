@@ -10,6 +10,7 @@ public partial class TowerMapViewModel : ViewModelBase
 {
     private readonly IFccDataService _fccService;
     private readonly NetAntenna.Core.Data.IDatabaseService _db;
+    private readonly IGeocodingService _geocoding;
 
     [ObservableProperty] private bool _isUpdating;
     [ObservableProperty] private string _lastUpdateText = "Never";
@@ -18,11 +19,15 @@ public partial class TowerMapViewModel : ViewModelBase
     
     [ObservableProperty] private string _userLat = "";
     [ObservableProperty] private string _userLng = "";
+    
+    [ObservableProperty] private string _searchAddress = "";
+    [ObservableProperty] private bool _isSearchingAddress;
 
-    public TowerMapViewModel(IFccDataService fccService, NetAntenna.Core.Data.IDatabaseService db)
+    public TowerMapViewModel(IFccDataService fccService, NetAntenna.Core.Data.IDatabaseService db, IGeocodingService geocoding)
     {
         _fccService = fccService;
         _db = db;
+        _geocoding = geocoding;
         _ = LoadTowersAsync();
     }
 
@@ -48,6 +53,28 @@ public partial class TowerMapViewModel : ViewModelBase
             await _db.SetSettingAsync("user_lat", lat.ToString());
             await _db.SetSettingAsync("user_lng", lng.ToString());
             // Map refresh will happen via MapControl logic monitoring this VM, or user can push a button
+        }
+    }
+
+    [RelayCommand]
+    private async Task SearchAddressAsync()
+    {
+        if (string.IsNullOrWhiteSpace(SearchAddress) || IsSearchingAddress) return;
+
+        IsSearchingAddress = true;
+        try
+        {
+            var coords = await _geocoding.GetCoordinatesAsync(SearchAddress);
+            if (coords.HasValue)
+            {
+                UserLat = coords.Value.Latitude.ToString("F4");
+                UserLng = coords.Value.Longitude.ToString("F4");
+                await SaveLocationAsync();
+            }
+        }
+        finally
+        {
+            IsSearchingAddress = false;
         }
     }
 

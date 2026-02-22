@@ -65,6 +65,7 @@ public partial class App : Application
         services.AddHttpClient<IFccDataService, FccDataService>();
         services.AddHttpClient<INwsWeatherService, NwsWeatherService>();
         services.AddSingleton<IRfPredictionEngine, RfPredictionEngine>();
+        services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
         services.AddSingleton<IDatabaseService>(sp =>
         {
             var folder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
