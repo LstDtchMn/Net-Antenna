@@ -71,7 +71,7 @@
                                 <SolidColorBrush Color="{Binding HasLock, Converter={x:Static local:Converters.LockToColor}}"/>
                             </Border.BorderBrush>
                             
-                            <Grid ColumnDefinitions="100,*,300" RowDefinitions="Auto">
+                            <Grid ColumnDefinitions="80,*,300" RowDefinitions="Auto">
                                 <!-- Col 0: Physical RF Channel & Badges -->
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Text="RF CHANNEL" FontSize="11" Foreground="#A6ADC8" LetterSpacing="1" />
@@ -103,17 +103,25 @@
                                 </StackPanel>
 
                                 <!-- Col 2: Signal Metrics -->
-                                <Grid Grid.Column="2" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" VerticalAlignment="Center" Margin="16,0,0,0">
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="6">
                                     <!-- Signal Strength -->
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Signal Strength" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <ProgressBar Grid.Row="0" Grid.Column="1" Value="{Binding SignalStrength}" Maximum="100" Height="8" CornerRadius="4" Foreground="#A6E3A1" Background="#313244" Margin="0,0,8,8"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SignalStrength, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold" Foreground="#A6E3A1" VerticalAlignment="Center" Margin="0,0,0,8" TextAlignment="Right"/>
-                                    
+                                    <StackPanel Spacing="2">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="Signal Strength" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding SignalStrength, StringFormat='{}{0}%'}" FontSize="11" FontWeight="Bold" Foreground="#A6E3A1" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <ProgressBar Value="{Binding SignalStrength}" Maximum="100" Height="7" CornerRadius="3" Foreground="#A6E3A1" Background="#313244"/>
+                                    </StackPanel>
+
                                     <!-- Signal Quality -->
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Signal Quality" FontSize="12" Foreground="#A6ADC8" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding SymbolQuality}" Maximum="100" Height="8" CornerRadius="4" Foreground="#89B4FA" Background="#313244" Margin="0,0,8,0"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SymbolQuality, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold" Foreground="#89B4FA" VerticalAlignment="Center" TextAlignment="Right"/>
-                                </Grid>
+                                    <StackPanel Spacing="2">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="Signal Quality" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding SymbolQuality, StringFormat='{}{0}%'}" FontSize="11" FontWeight="Bold" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <ProgressBar Value="{Binding SymbolQuality}" Maximum="100" Height="7" CornerRadius="3" Foreground="#89B4FA" Background="#313244"/>
+                                    </StackPanel>
+                                </StackPanel>
                             </Grid>
                         </Border>
                     </DataTemplate>

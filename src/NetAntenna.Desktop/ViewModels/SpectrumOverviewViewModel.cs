@@ -86,23 +86,39 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
             // and aggregate virtual channels and their names.
             var lineup = await _tunerClient.GetLineupAsync(device.BaseUrl);
 
-            // Build a lookup: physical_channel_number -> PhysicalChannelBuilder
+            // Build a lookup: virtual_major -> PhysicalChannelBuilder
+            // The lineup URL encodes the RF channel: http://ip/auto/v35.1 → RF channel 35
             var groups = new Dictionary<int, PhysicalChannelBuilder>();
             foreach (var ch in lineup)
             {
-                // GuideNumber is like "44.2" - the major part is the physical channel (ATSC major#)
+                // GuideNumber is like "4.1" – major is ATSC virtual major, NOT RF channel
                 var dot = ch.GuideNumber.IndexOf('.');
                 var majorStr = dot >= 0 ? ch.GuideNumber[..dot] : ch.GuideNumber;
-                if (!int.TryParse(majorStr, out var physCh)) continue;
+                if (!int.TryParse(majorStr, out var virtualMajor)) continue;
+
+                // Parse the actual RF transmit channel from the URL: .../auto/v{RF}.{virtual}
+                // e.g. /auto/v35.1 → RF channel 35
+                int rfChannel = virtualMajor; // fallback
+                var url = ch.Url ?? "";
+                var vIdx = url.LastIndexOf("/v", StringComparison.OrdinalIgnoreCase);
+                if (vIdx >= 0)
+                {
+                    var rfPart = url[(vIdx + 2)..]; // "35.1" or "35"
+                    var rfDot = rfPart.IndexOf('.');
+                    var rfStr = rfDot >= 0 ? rfPart[..rfDot] : rfPart;
+                    if (int.TryParse(rfStr, out var parsedRf))
+                        rfChannel = parsedRf;
+                }
 
                 var ss = ch.SignalStrength ?? 0;
                 var sq = ch.SignalQuality ?? 0;
                 var hasLock = ss > 0 || sq > 0;
 
-                if (!groups.TryGetValue(physCh, out var group))
+                // Key by virtual major for display ordering, but track rfChannel for FCC lookup
+                if (!groups.TryGetValue(virtualMajor, out var group))
                 {
-                    group = new PhysicalChannelBuilder();
-                    groups[physCh] = group;
+                    group = new PhysicalChannelBuilder { RfChannel = rfChannel };
+                    groups[virtualMajor] = group;
                 }
 
                 // Keep the best signal levels seen on this physical channel
@@ -157,8 +173,9 @@ public partial class SpectrumOverviewViewModel : ViewModelBase
                         ch.VirtualChannels = string.Join(", ", group.VirtualChannels);
                         ch.Networks = string.Join(", ", group.Networks);
 
-                        // Find the most powerful assigned FCC tower for this channel
-                        var bestTower = towersByChannel[ch.PhysicalChannel]
+                        // Find the most powerful assigned FCC tower using the actual RF transmit channel
+                        var rfCh = groups.TryGetValue(ch.PhysicalChannel, out var grp) ? grp.RfChannel : ch.PhysicalChannel;
+                        var bestTower = towersByChannel[rfCh]
                             .OrderByDescending(t => t.ErpKw)
                             .FirstOrDefault();
 
@@ -287,6 +304,7 @@ internal class PhysicalChannelBuilder
     public bool HasLock { get; set; }
     public bool HasAtsc3 { get; set; }
     public bool HasDrm { get; set; }
+    public int RfChannel { get; set; }
     public List<string> VirtualChannels { get; } = new();
     public List<string> Networks { get; } = new();
 }
