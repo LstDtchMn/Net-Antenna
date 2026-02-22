@@ -50,7 +50,10 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Phase 1 Core Services
+        // Phase 2 Core Services
+        services.AddHttpClient<IFccDataService, FccDataService>();
+        services.AddHttpClient<INwsWeatherService, NwsWeatherService>();
+        services.AddSingleton<IRfPredictionEngine, RfPredictionEngine>();
         services.AddSingleton<IDatabaseService>(sp =>
         {
             var folder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -63,6 +66,7 @@ public partial class App : Application
         services.AddSingleton<ISignalLogger, SignalLoggerService>();
 
         // ViewModels
+        services.AddTransient<MainWindowViewModel>();
         services.AddTransient<DashboardViewModel>();
         services.AddTransient<ChannelManagerViewModel>();
         services.AddTransient<TowerMapViewModel>();
