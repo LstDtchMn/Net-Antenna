@@ -511,8 +511,25 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
         try
         {
             await using var clearCmd = _connection.CreateCommand();
-            clearCmd.CommandText = "DELETE FROM fcc_towers";
+            clearCmd.CommandText = "DROP TABLE IF EXISTS fcc_towers";
             await clearCmd.ExecuteNonQueryAsync();
+
+            await using var createCmd = _connection.CreateCommand();
+            createCmd.CommandText = @"
+                CREATE TABLE fcc_towers (
+                    facility_id         INTEGER PRIMARY KEY,
+                    call_sign           TEXT,
+                    transmit_channel    INTEGER,
+                    latitude            REAL,
+                    longitude           REAL,
+                    erp_kw              REAL,
+                    haat_meters         REAL,
+                    is_nextgen_tv       INTEGER,
+                    service_type        TEXT,
+                    city                TEXT,
+                    state               TEXT
+                )";
+            await createCmd.ExecuteNonQueryAsync();
 
             await using var insertCmd = _connection.CreateCommand();
             insertCmd.CommandText = @"
