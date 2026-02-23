@@ -8,9 +8,8 @@ namespace NetAntenna.Core.Services;
 public class FccDataService : IFccDataService
 {
     // FCC LMS Public Database page: https://enterpriseefiling.fcc.gov/dataentry/public/tv/lmsDatabase.html
-    private const string FacilityZipUrl = "https://enterpriseefiling.fcc.gov/dataentry/api/download/dbfile/facility.zip";
-    private const string ApplicationZipUrl = "https://enterpriseefiling.fcc.gov/dataentry/api/download/dbfile/application.zip";
-    private const string EngineeringZipUrl = "https://enterpriseefiling.fcc.gov/dataentry/api/download/dbfile/tv_app_engineering.zip";
+    // "Current_LMS_Dump.zip" is always kept current by the FCC
+    private const string LmsDumpUrl = "https://enterpriseefiling.fcc.gov/dataentry/api/download/dbfile/Current_LMS_Dump.zip";
     private readonly HttpClient _httpClient;
     private readonly IDatabaseService _db;
 
@@ -22,51 +21,37 @@ public class FccDataService : IFccDataService
 
     public async Task DownloadAndIndexLmsDataAsync(IProgress<int>? progress = null, CancellationToken ct = default)
     {
-        progress?.Report(5); // Downloading facility data
+        progress?.Report(5);
 
-        // Download and parse each file separately from the new FCC LMS endpoints
-        var facilityEntry = await DownloadAndOpenZipEntry(FacilityZipUrl, "facility.dat", ct);
-        progress?.Report(25);
+        // Download the single always-current LMS dump from the FCC
+        using var response = await _httpClient.GetAsync(LmsDumpUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
 
-        var appEntry = await DownloadAndOpenZipEntry(ApplicationZipUrl, "application.dat", ct);
+        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+        progress?.Report(40);
+
+        using var ms = new MemoryStream(bytes);
+        using var archive = new ZipArchive(ms, ZipArchiveMode.Read);
+
+        var facilityEntry   = FindEntry(archive, "facility.dat")          ?? throw new FileNotFoundException($"facility.dat not found. Files: {string.Join(", ", archive.Entries.Select(e => e.Name))}");
+        var appEntry        = FindEntry(archive, "application.dat")        ?? throw new FileNotFoundException("application.dat not found");
+        var engEntry        = FindEntry(archive, "tv_app_engineering.dat") ?? throw new FileNotFoundException("tv_app_engineering.dat not found");
+
         progress?.Report(50);
+        var facilities   = await ParseFacilitiesAsync(facilityEntry.Open(),  ct);
+        var applications = await ParseApplicationsAsync(appEntry.Open(),     ct);
+        var towers       = await ParseEngineeringDataAsync(engEntry.Open(),  facilities, applications, ct);
 
-        var engEntry = await DownloadAndOpenZipEntry(EngineeringZipUrl, "tv_app_engineering.dat", ct);
-        progress?.Report(70);
-
-        var facilities = await ParseFacilitiesAsync(facilityEntry, ct);
-        var applications = await ParseApplicationsAsync(appEntry, ct);
-        var towers = await ParseEngineeringDataAsync(engEntry, facilities, applications, ct);
-
-        progress?.Report(90); // Saving to DB
+        progress?.Report(90);
         await _db.ReplaceFccTowersAsync(towers);
         await _db.SetSettingAsync("fcc_last_updated_unix_ms", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString());
 
-        progress?.Report(100); // Done
+        progress?.Report(100);
     }
 
-    private async Task<Stream> DownloadAndOpenZipEntry(string url, string entryName, CancellationToken ct)
-    {
-        using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
-
-        // The zip is small enough to buffer in memory so we can dispose the response
-        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
-        var ms = new MemoryStream(bytes);
-        var archive = new ZipArchive(ms, ZipArchiveMode.Read, leaveOpen: false);
-
-        // The entry might be at root level or inside a sub-folder
-        var entry = archive.GetEntry(entryName)
-            ?? archive.Entries.FirstOrDefault(e => e.Name.Equals(entryName, StringComparison.OrdinalIgnoreCase))
-            ?? throw new FileNotFoundException($"Could not find '{entryName}' inside zip from {url}. Available: {string.Join(", ", archive.Entries.Select(e => e.Name))}");
-
-        // Extract to a MemoryStream so the ZipArchive can be disposed safely
-        var result = new MemoryStream();
-        await using var entryStream = entry.Open();
-        await entryStream.CopyToAsync(result, ct);
-        result.Position = 0;
-        return result;
-    }
+    private static ZipArchiveEntry? FindEntry(ZipArchive archive, string name) =>
+        archive.GetEntry(name)
+        ?? archive.Entries.FirstOrDefault(e => e.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
     public async Task<DateTimeOffset?> GetLastUpdateDateAsync(CancellationToken ct = default)
     {

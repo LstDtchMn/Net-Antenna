@@ -22,6 +22,12 @@ public partial class TowerMapViewModel : ViewModelBase
     
     [ObservableProperty] private string _searchAddress = "";
     [ObservableProperty] private bool _isSearchingAddress;
+    [ObservableProperty] private bool _isLoadingSuggestions;
+    [ObservableProperty] private bool _showSuggestions;
+    [ObservableProperty] private ObservableCollection<GeocodingSuggestion> _suggestions = new();
+    [ObservableProperty] private string _fccDownloadProgress = "";
+
+    private CancellationTokenSource? _debounceCts;
 
     public TowerMapViewModel(IFccDataService fccService, NetAntenna.Core.Data.IDatabaseService db, IGeocodingService geocoding)
     {
@@ -40,9 +46,62 @@ public partial class TowerMapViewModel : ViewModelBase
         var lastUpdate = await _fccService.GetLastUpdateDateAsync();
         LastUpdateText = lastUpdate?.ToString("g") ?? "Never";
         
-        // Load user coordinates
-        UserLat = await _db.GetSettingAsync("user_lat") ?? "39.8283"; // Default US Center
+        UserLat = await _db.GetSettingAsync("user_lat") ?? "39.8283";
         UserLng = await _db.GetSettingAsync("user_lng") ?? "-98.5795";
+    }
+
+    // Called automatically by CommunityToolkit whenever SearchAddress changes
+    partial void OnSearchAddressChanged(string value)
+    {
+        _debounceCts?.Cancel();
+        _debounceCts = new CancellationTokenSource();
+        var ct = _debounceCts.Token;
+
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 3)
+        {
+            Suggestions.Clear();
+            ShowSuggestions = false;
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(350, ct); // debounce 350ms
+                
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => IsLoadingSuggestions = true);
+                
+                var results = await _geocoding.GetSuggestionsAsync(value, ct);
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    Suggestions.Clear();
+                    foreach (var s in results) Suggestions.Add(s);
+                    ShowSuggestions = Suggestions.Count > 0;
+                    IsLoadingSuggestions = false;
+                });
+            }
+            catch (OperationCanceledException) { /* debounced away */ }
+        }, ct);
+    }
+
+    [RelayCommand]
+    private async Task SelectSuggestionAsync(GeocodingSuggestion suggestion)
+    {
+        SearchAddress = suggestion.DisplayName;
+        ShowSuggestions = false;
+        Suggestions.Clear();
+
+        UserLat = suggestion.Latitude.ToString("F4");
+        UserLng = suggestion.Longitude.ToString("F4");
+        await SaveLocationAsync();
+    }
+
+    [RelayCommand]
+    private void DismissSuggestions()
+    {
+        ShowSuggestions = false;
     }
 
     [RelayCommand]
@@ -52,7 +111,6 @@ public partial class TowerMapViewModel : ViewModelBase
         {
             await _db.SetSettingAsync("user_lat", lat.ToString());
             await _db.SetSettingAsync("user_lng", lng.ToString());
-            // Map refresh will happen via MapControl logic monitoring this VM, or user can push a button
         }
     }
 
@@ -61,6 +119,7 @@ public partial class TowerMapViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(SearchAddress) || IsSearchingAddress) return;
 
+        ShowSuggestions = false;
         IsSearchingAddress = true;
         try
         {
@@ -84,15 +143,21 @@ public partial class TowerMapViewModel : ViewModelBase
         if (IsUpdating) return;
         
         IsUpdating = true;
+        FccDownloadProgress = "Starting download...";
         try
         {
-            await _fccService.DownloadAndIndexLmsDataAsync();
-            await LoadTowersAsync(); // Refresh from DB
-            LastUpdateText = DateTimeOffset.Now.ToString("g");
+            var progress = new Progress<int>(pct => 
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    FccDownloadProgress = $"Downloading... {pct}%"));
+            
+            await _fccService.DownloadAndIndexLmsDataAsync(progress);
+            await LoadTowersAsync();
+            FccDownloadProgress = $"✅ {TowerCount:N0} towers indexed";
         }
         catch (Exception ex)
         {
-            LastUpdateText = $"Error: {ex.Message}";
+            FccDownloadProgress = $"❌ {ex.Message}";
+            LastUpdateText = "Failed";
         }
         finally
         {

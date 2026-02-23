@@ -23,38 +23,42 @@ public sealed class NominatimGeocodingService : IGeocodingService
 
     public async Task<(double Latitude, double Longitude)?> GetCoordinatesAsync(string address, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(address)) return null;
+        var suggestions = await GetSuggestionsAsync(address, ct);
+        if (suggestions.Count == 0) return null;
+        var first = suggestions[0];
+        return (first.Latitude, first.Longitude);
+    }
+
+    public async Task<List<GeocodingSuggestion>> GetSuggestionsAsync(string query, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 3)
+            return new List<GeocodingSuggestion>();
 
         try
         {
-            var encodedAddress = Uri.EscapeDataString(address);
-            var url = $"https://nominatim.openstreetmap.org/search?q={encodedAddress}&format=json&limit=1";
+            var encoded = Uri.EscapeDataString(query);
+            var url = $"https://nominatim.openstreetmap.org/search?q={encoded}&format=json&limit=5&addressdetails=0&countrycodes=us";
 
             var responseText = await _http.GetStringAsync(url, ct);
             using var doc = JsonDocument.Parse(responseText);
-            
-            if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+
+            var results = new List<GeocodingSuggestion>();
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return results;
+
+            foreach (var item in doc.RootElement.EnumerateArray())
             {
-                var firstResult = doc.RootElement[0];
-                
-                if (firstResult.TryGetProperty("lat", out var latProp) && 
-                    firstResult.TryGetProperty("lon", out var lonProp))
-                {
-                    if (double.TryParse(latProp.GetString(), out var lat) && 
-                        double.TryParse(lonProp.GetString(), out var lon))
-                    {
-                        return (lat, lon);
-                    }
-                }
+                var name = item.TryGetProperty("display_name", out var dispProp) ? dispProp.GetString() ?? "" : "";
+                if (!item.TryGetProperty("lat", out var latProp) || !item.TryGetProperty("lon", out var lonProp)) continue;
+                if (!double.TryParse(latProp.GetString(), out var lat) || !double.TryParse(lonProp.GetString(), out var lon)) continue;
+                results.Add(new GeocodingSuggestion(name, lat, lon));
             }
-            
-            _logger.LogWarning("Geocoding failed to find coordinates for address: {Address}", address);
-            return null;
+
+            return results;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error while geocoding address: {Address}", address);
-            return null;
+            _logger.LogError(ex, "Error while getting suggestions for: {Query}", query);
+            return new List<GeocodingSuggestion>();
         }
     }
 }

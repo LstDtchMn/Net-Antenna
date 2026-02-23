@@ -1,68 +1,159 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NetAntenna.Desktop.ViewModels"
+             xmlns:model="using:NetAntenna.Core.Services"
              xmlns:mapsui="clr-namespace:Mapsui.UI.Avalonia;assembly=Mapsui.UI.Avalonia"
              x:Class="NetAntenna.Desktop.Views.TowerMapView"
              x:DataType="vm:TowerMapViewModel">
 
     <Grid RowDefinitions="Auto,*">
-        <!-- Control Header -->
-        <!-- Control Header -->
-        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+
+        <!-- ─── Control Panel ─── -->
+        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16,12" Margin="0,0,0,8">
             <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
-                
-                <!-- Row 0: Title and Status -->
-                <WrapPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,12">
-                    <TextBlock Text="FCC Tower Map" FontSize="20" FontWeight="SemiBold" Foreground="White" Margin="0,0,16,0" VerticalAlignment="Center"/>
-                    
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,16,0">
-                        <TextBlock Text="Towers Indexed:" Foreground="#B0B0B0" />
-                        <TextBlock Text="{Binding TowerCount}" Foreground="White" FontWeight="Bold" />
+
+                <!-- Row 0: title, stats, download -->
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center" Margin="0,0,0,12">
+                    <TextBlock Text="📡 FCC Tower Map" FontSize="20" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="Towers:" Foreground="#6C7086" FontSize="13"/>
+                        <TextBlock Text="{Binding TowerCount, StringFormat='{}{0:N0}'}" Foreground="#A6E3A1" FontWeight="Bold" FontSize="13"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="Updated:" Foreground="#6C7086" FontSize="13"/>
+                        <TextBlock Text="{Binding LastUpdateText}" Foreground="#CDD6F4" FontSize="13"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Download button top-right -->
+                <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,0,12">
+                    <Button Content="⬇ Download FCC Data"
+                            Command="{Binding DownloadFccDataCommand}"
+                            IsEnabled="{Binding !IsUpdating}"
+                            Padding="14,8" Background="#313244" Foreground="White" CornerRadius="6">
+                        <Button.Styles>
+                            <Style Selector="Button:disabled">
+                                <Setter Property="Content" Value="⏳ Downloading..."/>
+                                <Setter Property="Foreground" Value="#6C7086"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                    <!-- Progress/status row below the button -->
+                    <TextBlock Text="{Binding FccDownloadProgress}"
+                               IsVisible="{Binding FccDownloadProgress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               Foreground="#A6ADC8" FontSize="11" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- Row 1: Autocomplete address + manual coord save -->
+                <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto">
+
+                    <!-- ADDRESS SEARCH with autocomplete overlay -->
+                    <Panel Grid.Column="0" Margin="0,0,12,0">
+                        <!-- Search input row -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0"
+                                     x:Name="AddressBox"
+                                     Text="{Binding SearchAddress}"
+                                     Watermark="Start typing your address…"
+                                     Padding="12,8" FontSize="13"
+                                     Background="#11111B" Foreground="White"
+                                     CaretBrush="White"
+                                     BorderBrush="#45475A" BorderThickness="1"
+                                     CornerRadius="6,0,0,6"/>
+                            <Button Grid.Column="1"
+                                    Content="🔍 Find"
+                                    Command="{Binding SearchAddressCommand}"
+                                    IsEnabled="{Binding !IsSearchingAddress}"
+                                    Padding="16,8" FontSize="13"
+                                    Background="#00BCD4" Foreground="White" FontWeight="SemiBold"
+                                    CornerRadius="0,6,6,0">
+                                <Button.Styles>
+                                    <Style Selector="Button:disabled">
+                                        <Setter Property="Content" Value="⏳"/>
+                                        <Setter Property="Background" Value="#313244"/>
+                                    </Style>
+                                </Button.Styles>
+                            </Button>
+                        </Grid>
+
+                        <!-- Autocomplete dropdown overlay -->
+                        <Border IsVisible="{Binding ShowSuggestions}"
+                                Background="#2A2A3E"
+                                BorderBrush="#585B70" BorderThickness="1"
+                                CornerRadius="0,0,8,8"
+                                BoxShadow="0 8 24 -4 #99000000"
+                                Margin="0,40,48,0"
+                                ZIndex="100"
+                                MaxHeight="240">
+                            <ListBox ItemsSource="{Binding Suggestions}"
+                                     Background="Transparent"
+                                     SelectionMode="Single"
+                                     Padding="4">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="12,8"/>
+                                        <Setter Property="CornerRadius" Value="4"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                    </Style>
+                                    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                                        <Setter Property="Background" Value="#313244"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="model:GeocodingSuggestion">
+                                        <Button Command="{Binding $parent[UserControl].((vm:TowerMapViewModel)DataContext).SelectSuggestionCommand}"
+                                                CommandParameter="{Binding}"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Left"
+                                                Padding="0"
+                                                Cursor="Hand">
+                                            <StackPanel Spacing="1">
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                           Foreground="#CDD6F4"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="500"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+
+                        <!-- Loading indicator -->
+                        <TextBlock IsVisible="{Binding IsLoadingSuggestions}"
+                                   Text="🔍 Searching..."
+                                   Foreground="#6C7086" FontSize="11"
+                                   Margin="4,42,0,0"
+                                   ZIndex="99"/>
+                    </Panel>
+
+                    <!-- Manual lat/lng + Save -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Lat:" Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding UserLat}" Width="80" Padding="8,6" FontSize="12"
+                                 Background="#11111B" Foreground="White" BorderBrush="#45475A" CornerRadius="4"/>
+                        <TextBlock Text="Lng:" Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding UserLng}" Width="90" Padding="8,6" FontSize="12"
+                                 Background="#11111B" Foreground="White" BorderBrush="#45475A" CornerRadius="4"/>
+                        <Button Content="💾 Save"
+                                Command="{Binding SaveLocationCommand}"
+                                Padding="12,6" FontSize="12"
+                                Background="#313244" Foreground="White" CornerRadius="4"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,16,0">
-                        <TextBlock Text="Last Updated:" Foreground="#B0B0B0" />
-                        <TextBlock Text="{Binding LastUpdateText}" Foreground="White" />
-                    </StackPanel>
-                </WrapPanel>
-
-                <!-- Row 0: Download Button -->
-                <Button Grid.Row="0" Grid.Column="1" 
-                        Content="⬇️ Download FCC Data" 
-                        Command="{Binding DownloadFccDataCommand}" 
-                        IsEnabled="{Binding !IsUpdating}"
-                        Padding="16,8"
-                        Background="#313244"
-                        VerticalAlignment="Top">
-                    <Button.Styles>
-                        <Style Selector="Button:disabled">
-                            <Setter Property="Content" Value="⏳ Downloading (takes ~30s)..." />
-                        </Style>
-                    </Button.Styles>
-                </Button>
-
-                <!-- Row 1: Location Controls -->
-                <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,16,8">
-                        <TextBox Text="{Binding SearchAddress}" Watermark="Enter your address..." Width="250" Padding="6,2" FontSize="12" />
-                        <Button Content="🔍 Find" Command="{Binding SearchAddressCommand}" IsEnabled="{Binding !IsSearchingAddress}" Padding="12,6" FontSize="12" Background="#313244" Foreground="White" CornerRadius="4"/>
-                    </StackPanel>
-                    
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,0,8">
-                        <TextBlock Text="Lat:" Foreground="#B0B0B0" VerticalAlignment="Center"/>
-                        <TextBox Text="{Binding UserLat}" Width="80" Padding="6,2" FontSize="12" />
-                        <TextBlock Text="Lng:" Foreground="#B0B0B0" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                        <TextBox Text="{Binding UserLng}" Width="80" Padding="6,2" FontSize="12" />
-                        <Button Content="💾 Save" Command="{Binding SaveLocationCommand}" Padding="12,6" FontSize="12" Background="#00BCD4" Foreground="White" CornerRadius="4" Margin="4,0,0,0"/>
-                    </StackPanel>
-                </WrapPanel>
-
+                </Grid>
             </Grid>
         </Border>
 
-        <!-- Map Container -->
-        <Border Grid.Row="1" Background="#11111B" CornerRadius="8" ClipToBounds="True">
-            <mapsui:MapControl x:Name="TowerMap" />
-        </Border>
+        <!-- ─── Map ─── -->
+        <Panel Grid.Row="1">
+            <Border Background="#11111B" CornerRadius="8" ClipToBounds="True">
+                <mapsui:MapControl x:Name="TowerMap"/>
+            </Border>
+        </Panel>
+
     </Grid>
 </UserControl>
