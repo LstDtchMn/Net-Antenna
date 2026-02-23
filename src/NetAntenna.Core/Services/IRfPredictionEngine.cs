@@ -22,4 +22,9 @@ public interface IRfPredictionEngine
     /// Calculates the initial bearing (azimuth) from point 1 to point 2 in degrees (0 = North).
     /// </summary>
     double CalculateBearingDegrees(double lat1, double lon1, double lat2, double lon2);
+
+    /// <summary>
+    /// Calculates the maximum theoretical distance in kilometers at which a target receive power (dBm) is achieved, assuming free space path loss.
+    /// </summary>
+    double CalculateContourDistanceKm(FccTower tower, double targetRxPowerDbm);
 }

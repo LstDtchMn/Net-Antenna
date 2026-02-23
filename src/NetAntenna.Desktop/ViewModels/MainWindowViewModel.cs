@@ -14,6 +14,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ChannelManagerViewModel _channelManagerVm;
     private readonly TowerMapViewModel _towerMapVm;
     private readonly SpectrumOverviewViewModel _spectrumOverviewVm;
+    private readonly SweeperViewModel _sweeperVm;
     private readonly AimingAssistantViewModel _aimingAssistantVm;
     private readonly LogsViewModel _logsVm;
     private readonly SettingsViewModel _settingsVm;
@@ -46,6 +47,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ChannelManagerViewModel channelManagerVm,
         TowerMapViewModel towerMapVm,
         SpectrumOverviewViewModel spectrumOverviewVm,
+        SweeperViewModel sweeperVm,
         AimingAssistantViewModel aimingAssistantVm,
         LogsViewModel logsVm,
         SettingsViewModel settingsVm)
@@ -56,6 +58,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _channelManagerVm = channelManagerVm;
         _towerMapVm = towerMapVm;
         _spectrumOverviewVm = spectrumOverviewVm;
+        _sweeperVm = sweeperVm;
         _aimingAssistantVm = aimingAssistantVm;
         _logsVm = logsVm;
         _settingsVm = settingsVm;
@@ -75,6 +78,7 @@ public partial class MainWindowViewModel : ViewModelBase
             "Channels" => _channelManagerVm,
             "TowerMap" => _towerMapVm,
             "SpectrumOverview" => _spectrumOverviewVm,
+            "Sweeper" => _sweeperVm,
             "AimingAssistant" => _aimingAssistantVm,
             "Logs" => _logsVm,
             "Settings" => _settingsVm,
@@ -157,5 +161,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
         await _dashboardVm.SetDeviceAsync(SelectedDevice);
         await _channelManagerVm.SetDeviceAsync(SelectedDevice);
+        _sweeperVm.SetDevice(SelectedDevice);
     }
 }

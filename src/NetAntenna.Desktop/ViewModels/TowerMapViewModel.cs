@@ -18,6 +18,10 @@ public partial class TowerMapViewModel : ViewModelBase
     [ObservableProperty] private string _lastUpdateText = "Never";
     [ObservableProperty] private int _towerCount;
     [ObservableProperty] private ObservableCollection<FccTower> _towers = new();
+    private List<FccTower> _allTowers = new();
+
+    [ObservableProperty] private ObservableCollection<string> _radiusOptions = new();
+    [ObservableProperty] private string _selectedRadius = "70 miles";
     
     [ObservableProperty] private string _userLat = "";
     [ObservableProperty] private string _userLng = "";
@@ -28,11 +32,46 @@ public partial class TowerMapViewModel : ViewModelBase
     [ObservableProperty] private bool _showSuggestions;
     [ObservableProperty] private ObservableCollection<GeocodingSuggestion> _suggestions = new();
     [ObservableProperty] private string _fccDownloadProgress = "";
-    [ObservableProperty] private bool _showDownloadConfirmation;
     [ObservableProperty] private MapLayer _selectedMapLayer = MapLayer.Street;
+    [ObservableProperty] private bool _zoomToLocationRequested;  // toggled to notify view
+    [ObservableProperty] private bool _zoomInToMeRequested;      // toggled to notify view
+    [ObservableProperty] private bool _zoomOutFromMeRequested;   // toggled to notify view
+    [ObservableProperty] private bool _resetMapRequested;        // toggled to notify view
 
     [RelayCommand]
     private void SetMapLayer(MapLayer layer) => SelectedMapLayer = layer;
+
+    [RelayCommand]
+    private void ZoomToLocation()
+    {
+        // Toggle the bool to trigger a property-changed notification the view can react to
+        ZoomToLocationRequested = !ZoomToLocationRequested;
+    }
+
+    [RelayCommand]
+    private void ZoomInToMe()
+    {
+        ZoomInToMeRequested = !ZoomInToMeRequested;
+    }
+
+    [RelayCommand]
+    private void ZoomOutFromMe()
+    {
+        ZoomOutFromMeRequested = !ZoomOutFromMeRequested;
+    }
+
+    [RelayCommand]
+    private void ResetMap()
+    {
+        ResetMapRequested = !ResetMapRequested;
+    }
+
+    [RelayCommand]
+    private void ClearTowers()
+    {
+        Towers.Clear();
+        TowerCount = 0;
+    }
 
     private CancellationTokenSource? _debounceCts;
 
@@ -47,8 +86,7 @@ public partial class TowerMapViewModel : ViewModelBase
     private async Task LoadTowersAsync()
     {
         var towers = await _db.GetAllFccTowersAsync();
-        Towers = new ObservableCollection<FccTower>(towers);
-        TowerCount = towers.Count;
+        _allTowers = towers.ToList();
 
         var lastUpdate = await _fccService.GetLastUpdateDateAsync();
         LastUpdateText = lastUpdate?.ToString("g") ?? "Never";
@@ -57,7 +95,87 @@ public partial class TowerMapViewModel : ViewModelBase
         UserLng = await _db.GetSettingAsync("user_lng") ?? "-98.5795";
         var savedAddress = await _db.GetSettingAsync("user_address");
         if (!string.IsNullOrWhiteSpace(savedAddress))
+        {
             SearchAddress = savedAddress;
+            _debounceCts?.Cancel();
+            ShowSuggestions = false;
+        }
+
+        // Populate radius options and integrate "My Antenna" if set
+        var options = new List<string> { "15 miles", "35 miles", "50 miles", "70 miles", "85 miles", "100 miles", "150 miles", "All Towers" };
+        var antennaType = await _db.GetSettingAsync("antenna_type");
+        if (!string.IsNullOrWhiteSpace(antennaType) && antennaType != "Unknown")
+        {
+            int estimatedMiles = antennaType switch
+            {
+                "Indoor Flat" => 25,
+                "Indoor Amplified" => 35,
+                "Attic Mount - Omnidirectional" => 50,
+                "Attic Mount - Directional" => 60,
+                "Outdoor - Omnidirectional VHF/UHF" => 50,
+                "Outdoor - Directional UHF" => 70,
+                "Outdoor - Directional VHF/UHF" => 70,
+                "Outdoor - Yagi" => 100,
+                _ => 50
+            };
+            options.Insert(0, $"My Antenna (~{estimatedMiles} mi)");
+        }
+
+        RadiusOptions = new ObservableCollection<string>(options);
+        if (string.IsNullOrEmpty(SelectedRadius) || !RadiusOptions.Contains(SelectedRadius))
+        {
+            SelectedRadius = "70 miles";
+        }
+        else
+        {
+            FilterTowers(); // Trigger filter explicitly if we kept previous radius
+        }
+    }
+
+    partial void OnSelectedRadiusChanged(string value)
+    {
+        FilterTowers();
+    }
+
+    partial void OnUserLatChanged(string value) => FilterTowers();
+    partial void OnUserLngChanged(string value) => FilterTowers();
+
+    private void FilterTowers()
+    {
+        if (_allTowers == null || _allTowers.Count == 0 || !double.TryParse(UserLat, out var lat) || !double.TryParse(UserLng, out var lng)) 
+            return;
+
+        if (SelectedRadius == "All Towers" || string.IsNullOrEmpty(SelectedRadius))
+        {
+            Towers = new ObservableCollection<FccTower>(_allTowers);
+            TowerCount = _allTowers.Count;
+            return;
+        }
+
+        // Parse distance from string like "35 miles" or "My Antenna (~85 mi)"
+        double maxDist = double.MaxValue;
+        var digits = new string(SelectedRadius.Where(char.IsDigit).ToArray());
+        if (double.TryParse(digits, out var parsedDist))
+        {
+            maxDist = parsedDist;
+        }
+
+        var filtered = _allTowers.Where(t => CalculateDistanceMiles(lat, lng, t.Latitude, t.Longitude) <= maxDist).ToList();
+        
+        Towers = new ObservableCollection<FccTower>(filtered);
+        TowerCount = filtered.Count;
+    }
+
+    private static double CalculateDistanceMiles(double lat1, double lon1, double lat2, double lon2)
+    {
+        var earthRadiusMiles = 3958.8;
+        var dLat = (lat2 - lat1) * Math.PI / 180.0;
+        var dLon = (lon2 - lon1) * Math.PI / 180.0;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return earthRadiusMiles * c;
     }
 
     // Called automatically by CommunityToolkit whenever SearchAddress changes
@@ -156,23 +274,9 @@ public partial class TowerMapViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void RequestDownload()
-    {
-        if (IsUpdating) return;
-        ShowDownloadConfirmation = true;
-    }
-
-    [RelayCommand]
-    private void CancelDownload()
-    {
-        ShowDownloadConfirmation = false;
-    }
-
-    [RelayCommand]
     private async Task DownloadFccDataAsync()
     {
         if (IsUpdating) return;
-        ShowDownloadConfirmation = false;
         
         IsUpdating = true;
         FccDownloadProgress = "Connecting to FCC...";

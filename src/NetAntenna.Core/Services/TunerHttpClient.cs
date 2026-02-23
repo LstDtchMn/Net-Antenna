@@ -43,32 +43,44 @@ public sealed class TunerHttpClient : ITunerClient, IDisposable
         return channels;
     }
 
-    /// <inheritdoc />
     public async Task<TunerStatus> GetTunerStatusAsync(
         string baseUrl, int tunerIndex, CancellationToken ct = default)
     {
         try
         {
-            var jsonUrl = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/status.json";
+            // Modern HDHomeRun (FLEX, SCRIBE, CONNECT) returns all tuners in a single JSON array
+            var jsonUrl = $"{NormalizeUrl(baseUrl)}/status.json";
             var doc = await _http.GetFromJsonAsync<JsonDocument>(jsonUrl, ct);
-            if (doc != null && doc.RootElement.ValueKind != JsonValueKind.Null)
+            
+            if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
             {
-                var root = doc.RootElement;
-                return new TunerStatus
+                var targetResource = $"tuner{tunerIndex}";
+                foreach (var element in doc.RootElement.EnumerateArray())
                 {
-                    Channel = root.TryGetProperty("VctNumber", out var vct) ? vct.GetString() ?? "" : "",
-                    Lock = root.TryGetProperty("Lock", out var lck) ? lck.GetString() ?? "none" : "none",
-                    SignalStrength = root.TryGetProperty("SignalStrength", out var ss) ? ss.GetInt32() : 0,
-                    SignalToNoiseQuality = root.TryGetProperty("SignalToNoiseQuality", out var snq) ? snq.GetInt32() : 0,
-                    SymbolQuality = root.TryGetProperty("SymbolQuality", out var seq) ? seq.GetInt32() : 0,
-                    BitsPerSecond = root.TryGetProperty("Bitrate", out var bps) ? bps.GetInt64() : 0,
-                    PacketsPerSecond = 0
-                };
+                    if (element.TryGetProperty("Resource", out var res) && res.GetString() == targetResource)
+                    {
+                        var status = new TunerStatus
+                        {
+                            Channel = element.TryGetProperty("VctNumber", out var vct) ? vct.GetString() ?? "" : "",
+                            SignalStrength = element.TryGetProperty("SignalStrengthPercent", out var ss) ? ss.GetInt32() : 0,
+                            SignalToNoiseQuality = element.TryGetProperty("SignalQualityPercent", out var snq) ? snq.GetInt32() : 0,
+                            SymbolQuality = element.TryGetProperty("SymbolQualityPercent", out var seq) ? seq.GetInt32() : 0,
+                            BitsPerSecond = element.TryGetProperty("NetworkRate", out var bps) ? bps.GetInt64() : 0,
+                            PacketsPerSecond = 0
+                        };
+                        
+                        // Modern API drops the 'Lock' property entirely when streaming, but includes 'VctNumber' and 'Frequency'
+                        status.Lock = (!string.IsNullOrEmpty(status.Channel) || element.TryGetProperty("Frequency", out _)) 
+                            ? "locked" : "none";
+                            
+                        return status;
+                    }
+                }
             }
         }
         catch (HttpRequestException)
         {
-            // Some models might only support the old line-based /status endpoint
+            // Some older models might only support the legacy line-based /status endpoint
             try
             {
                 var statusUrl = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/status";
@@ -93,29 +105,41 @@ public sealed class TunerHttpClient : ITunerClient, IDisposable
         string baseUrl, int tunerIndex, string channel, CancellationToken ct = default)
     {
         // HDHomeRun has no POST "set channel" API. Tuning is done by opening a streaming
-        // HTTP connection to /tunerN/<channel>. We send a HEAD request (or a GET with a
-        // very short timeout) so the device tunes and locks, then we immediately close.
-        // Releasing a tuner means we just stop reading — there is no explicit "release" call.
+        // HTTP connection on port 5004 to /tunerN/<channel>. We send a GET and abort
+        // immediately after headers arrive so the device tunes and locks.
+        // The REST API (port 80) does NOT serve streaming endpoints — port 5004 does.
         if (channel == "none") return; // Nothing to do for release
 
-        var url = $"{NormalizeUrl(baseUrl)}/tuner{tunerIndex}/{channel}";
+        var streamBase = GetStreamingBaseUrl(baseUrl);
+        var url = $"{streamBase}/tuner{tunerIndex}/{channel}";
         
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        // Use a short cancellation window just to start the tune — we abort immediately
-        // after the tuner acknowledges. Status is read separately via /status.json.
         using var tuneCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         tuneCts.CancelAfter(TimeSpan.FromSeconds(2));
         try
         {
             using var response = await _http.SendAsync(
                 request, HttpCompletionOption.ResponseHeadersRead, tuneCts.Token);
-            // Don't call EnsureSuccessStatusCode — we don't actually want to read the stream,
-            // and 404 here likely means the channel truly doesn't exist (already off-air).
+            // 200 = tuner is now streaming (i.e. locked). We drop the connection immediately.
+            // Any non-200 means the channel doesn't exist or is off-air — that's fine.
         }
         catch (OperationCanceledException)
         {
-            // Expected — we cancelled the stream intentionally.
+            // Expected — we cancelled the stream intentionally after headers arrived.
         }
+    }
+
+    /// <summary>
+    /// Converts a device REST base URL (port 80) to the HDHomeRun streaming base URL (port 5004).
+    /// e.g. http://192.168.2.240 → http://192.168.2.240:5004
+    /// </summary>
+    private static string GetStreamingBaseUrl(string baseUrl)
+    {
+        if (!Uri.TryCreate(NormalizeUrl(baseUrl), UriKind.Absolute, out var uri))
+            return baseUrl;
+
+        var builder = new UriBuilder(uri) { Port = 5004 };
+        return builder.Uri.GetLeftPart(UriPartial.Authority);
     }
 
     /// <inheritdoc />

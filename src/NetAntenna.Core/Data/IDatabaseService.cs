@@ -15,12 +15,17 @@ public interface IDatabaseService
     Task<IReadOnlyList<HdHomeRunDevice>> GetAllDevicesAsync();
     Task<HdHomeRunDevice?> GetDeviceAsync(string deviceId);
 
-    // --- Signal Samples ---
+    // --- Signal Sweeps & History ---
+    Task RecordSweepSessionAsync(SweepSession session);
+    Task<IReadOnlyList<SweepSession>> GetSweepSessionsAsync(string deviceId, int limit = 50);
+
     Task InsertSamplesAsync(IEnumerable<SignalSample> samples);
     Task<IReadOnlyList<SignalSample>> GetSamplesAsync(
         string deviceId, long fromUnixMs, long toUnixMs, int? tunerIndex = null);
     Task<IReadOnlyList<SignalSample>> GetLatestSamplesAsync(
         string deviceId, int tunerIndex, int count = 1);
+    Task<IReadOnlyList<ChannelStatistics>> GetChannelStatisticsAsync(
+        string deviceId, long fromUnixMs, long toUnixMs);
     Task PurgeOldSamplesAsync(int retentionDays);
 
     // --- Channel Lineup ---

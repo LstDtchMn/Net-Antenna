@@ -1,6 +1,6 @@
-using System.IO.Compression;
 using System.Text;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NetAntenna.Core.Data;
 using NetAntenna.Core.Models;
@@ -13,19 +13,17 @@ public class FccDataServiceTests
     [Fact]
     public async Task ParseEngineeringData_ComputesWgs84CoordinatesCorrectly()
     {
-        // The service parses data from a downloaded zip. Since methods are private, 
-        // we'll test the public DownloadAndIndexLmsDataAsync with a mocked HttpClient 
-        // returning a synthesized zip file containing our test data.
-        
         var mockDb = new Mock<IDatabaseService>();
         List<FccTower> savedTowers = null!;
         mockDb.Setup(db => db.ReplaceFccTowersAsync(It.IsAny<IEnumerable<FccTower>>()))
             .Callback<IEnumerable<FccTower>>(towers => savedTowers = towers.ToList());
 
-        var handler = new MockHttpMessageHandler(CreateMockLmsZip());
+        var mockLogger = new Mock<ILogger<FccDataService>>();
+
+        var handler = new MockHttpMessageHandler(CreateMockTvqData());
         var httpClient = new HttpClient(handler);
         
-        var service = new FccDataService(httpClient, mockDb.Object);
+        var service = new FccDataService(httpClient, mockDb.Object, mockLogger.Object);
         
         await service.DownloadAndIndexLmsDataAsync();
 
@@ -47,51 +45,32 @@ public class FccDataServiceTests
         tower.Longitude.Should().BeApproximately(-73.975138, 0.0001);
     }
 
-    private static byte[] CreateMockLmsZip()
+    private static byte[] CreateMockTvqData()
     {
-        using var memoryStream = new MemoryStream();
-        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
-        {
-            // facility.dat
-            var facEntry = archive.CreateEntry("facility.dat");
-            using (var writer = new StreamWriter(facEntry.Open(), Encoding.UTF8))
-            {
-                writer.WriteLine("12345|some|WXYZ-TV|data");
-            }
+        var sb = new StringBuilder();
+        var fields = new string[35];
+        for (int i = 0; i < fields.Length; i++) fields[i] = "";
+        
+        fields[1] = "WXYZ-TV";
+        fields[3] = "DTV";
+        fields[4] = "24";
+        fields[9] = "LIC";
+        fields[10] = "NEW YORK";
+        fields[11] = "NY";
+        fields[13] = "12345";
+        fields[14] = "15.5  kW";
+        fields[19] = "S";
+        fields[20] = "40";
+        fields[21] = "45";
+        fields[22] = "15";
+        fields[23] = "W";
+        fields[24] = "73";
+        fields[25] = "58";
+        fields[26] = "30.5";
+        fields[31] = "345.6 m";
 
-            // application.dat
-            var appEntry = archive.CreateEntry("application.dat");
-            using (var writer = new StreamWriter(appEntry.Open(), Encoding.UTF8))
-            {
-                writer.WriteLine("APP_001|12345||||||LIC|more_data"); // LIC = Licensed
-            }
-
-            // tv_app_engineering.dat
-            var engEntry = archive.CreateEntry("tv_app_engineering.dat");
-            using (var writer = new StreamWriter(engEntry.Open(), Encoding.UTF8))
-            {
-                // Fields 14-22: lat_lat, lat_min, lat_sec, lat_dir, lon_lat, lon_min, lon_sec, lon_dir, channel
-                // We're simulating: 40 45 15 S, 73 58 30.5 W on channel 24
-                
-                // Build a 32+ item array (pipe delimited)
-                var fields = new string[35];
-                fields[0] = "APP_001";
-                fields[14] = "40";
-                fields[15] = "45";
-                fields[16] = "15";
-                fields[17] = "S";
-                fields[18] = "73";
-                fields[19] = "58";
-                fields[20] = "30.5";
-                fields[21] = "W";
-                fields[22] = "24";     // channel
-                fields[24] = "15.5";   // ERP
-                fields[26] = "345.6";  // HAAT
-                
-                writer.WriteLine(string.Join("|", fields));
-            }
-        }
-        return memoryStream.ToArray();
+        sb.AppendLine(string.Join("|", fields));
+        return Encoding.UTF8.GetBytes(sb.ToString());
     }
 }
 

@@ -45,15 +45,7 @@ public class RfPredictionEngine : IRfPredictionEngine
         if (distKm < 0.1) distKm = 0.1; // avoid log(0)
 
         // 2. Frequency Estimation (Center Frequency in MHz)
-        // FCC TV channels: VHF-Lo (2-6), VHF-Hi (7-13), UHF (14-36)
-        // Simplified mapping for FSPL calculation
-        double freqMhz;
-        if (tower.TransmitChannel >= 14)
-            freqMhz = 470 + (tower.TransmitChannel - 14) * 6 + 3; // UHF band starts at 470MHz, 6MHz wide
-        else if (tower.TransmitChannel >= 7)
-            freqMhz = 174 + (tower.TransmitChannel - 7) * 6 + 3; // VHF-Hi starts at 174MHz
-        else
-            freqMhz = 54 + (tower.TransmitChannel - 2) * 6 + 3; // VHF-Lo starts at 54MHz
+        var freqMhz = GetCenterFrequencyMhz(tower.TransmitChannel);
 
         // 3. Free Space Path Loss (FSPL) formula:
         // FSPL(dB) = 20*log10(d_km) + 20*log10(f_MHz) + 32.44
@@ -67,6 +59,35 @@ public class RfPredictionEngine : IRfPredictionEngine
         var rxPowerDbm = txPowerDbm - fspl;
 
         return rxPowerDbm;
+    }
+
+    public double CalculateContourDistanceKm(FccTower tower, double targetRxPowerDbm)
+    {
+        var freqMhz = GetCenterFrequencyMhz(tower.TransmitChannel);
+        var txPowerDbm = 10 * Math.Log10(tower.ErpKw * 1000) + 30;
+
+        // fspl = txPowerDbm - rxPowerDbm
+        var fspl = txPowerDbm - targetRxPowerDbm;
+
+        // fspl = 20*log10(d_km) + 20*log10(f_MHz) + 32.44
+        // 20*log10(d_km) = fspl - 20*log10(f_MHz) - 32.44
+        // log10(d_km) = (fspl - 20*log10(f_MHz) - 32.44) / 20
+        var log10d = (fspl - 20 * Math.Log10(freqMhz) - 32.44) / 20.0;
+        
+        var dKm = Math.Pow(10, log10d);
+        
+        // Cap unrealistic theoretical distances due to Free Space Model vs reality.
+        // Earth curvature blocks LOS after ~100-150km for most TV towers anyway.
+        return Math.Min(dKm, 150.0);
+    }
+
+    private static double GetCenterFrequencyMhz(int channel)
+    {
+        if (channel >= 14)
+            return 470 + (channel - 14) * 6 + 3;
+        if (channel >= 7)
+            return 174 + (channel - 7) * 6 + 3;
+        return 54 + (channel - 2) * 6 + 3;
     }
 
     private static double ToRadians(double degrees) => degrees * Math.PI / 180.0;

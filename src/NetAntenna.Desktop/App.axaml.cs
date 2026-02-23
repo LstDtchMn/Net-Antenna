@@ -76,6 +76,7 @@ public partial class App : Application
         services.AddSingleton<IDeviceDiscovery, DeviceDiscoveryService>();
         services.AddTransient<ITunerClient, TunerHttpClient>();
         services.AddSingleton<ISignalLogger, SignalLoggerService>();
+        services.AddSingleton<ITunerSweeperService, TunerSweeperService>();
 
         // ViewModels
         services.AddTransient<MainWindowViewModel>();
@@ -83,6 +84,7 @@ public partial class App : Application
         services.AddTransient<ChannelManagerViewModel>();
         services.AddTransient<TowerMapViewModel>();
         services.AddTransient<SpectrumOverviewViewModel>();
+        services.AddTransient<SweeperViewModel>();
         services.AddTransient<AimingAssistantViewModel>();
         services.AddTransient<LogsViewModel>();
         services.AddTransient<SettingsViewModel>();

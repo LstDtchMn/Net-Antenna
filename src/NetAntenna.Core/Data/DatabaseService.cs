@@ -73,6 +73,19 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
             CREATE INDEX IF NOT EXISTS idx_samples_device_tuner_time
                 ON signal_samples(device_id, tuner_index, timestamp_unix_ms);
 
+            CREATE TABLE IF NOT EXISTS sweep_sessions (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_id           TEXT NOT NULL,
+                start_time_unix_ms  INTEGER NOT NULL,
+                end_time_unix_ms    INTEGER NOT NULL,
+                mode                TEXT,
+                target_runs         INTEGER,
+                completed_runs      INTEGER,
+                FOREIGN KEY (device_id) REFERENCES devices(device_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_sessions_device_start
+                ON sweep_sessions(device_id, start_time_unix_ms DESC);
+
             CREATE TABLE IF NOT EXISTS channel_lineup (
                 device_id           TEXT NOT NULL,
                 guide_number        TEXT NOT NULL,
@@ -185,11 +198,15 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
     {
         var conn = await GetConnectionAsync();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT * FROM devices WHERE device_id = @id;";
+        cmd.CommandText = "SELECT * FROM devices WHERE device_id = @id";
         cmd.Parameters.AddWithValue("@id", deviceId);
 
         using var reader = await cmd.ExecuteReaderAsync();
-        return await reader.ReadAsync() ? ReadDevice(reader) : null;
+        if (await reader.ReadAsync())
+        {
+            return ReadDevice(reader);
+        }
+        return null;
     }
 
     private static HdHomeRunDevice ReadDevice(SqliteDataReader reader) => new()
@@ -205,6 +222,60 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
         IpAddress = reader.GetString(reader.GetOrdinal("ip_address")),
         LastSeenUnixMs = reader.GetInt64(reader.GetOrdinal("last_seen_unix_ms"))
     };
+
+    // --- Signal Sweeps & History ---
+
+    public async Task RecordSweepSessionAsync(SweepSession session)
+    {
+        var conn = await GetConnectionAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO sweep_sessions (
+                device_id, start_time_unix_ms, end_time_unix_ms, mode, target_runs, completed_runs
+            ) VALUES (
+                @devId, @start, @end, @mode, @target, @completed
+            );
+            """;
+        cmd.Parameters.AddWithValue("@devId", session.DeviceId);
+        cmd.Parameters.AddWithValue("@start", session.StartTimeUnixMs);
+        cmd.Parameters.AddWithValue("@end", session.EndTimeUnixMs);
+        cmd.Parameters.AddWithValue("@mode", session.Mode ?? string.Empty);
+        cmd.Parameters.AddWithValue("@target", session.TargetRuns);
+        cmd.Parameters.AddWithValue("@completed", session.CompletedRuns);
+
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<IReadOnlyList<SweepSession>> GetSweepSessionsAsync(string deviceId, int limit = 50)
+    {
+        var sessions = new List<SweepSession>();
+        var conn = await GetConnectionAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT * FROM sweep_sessions 
+            WHERE device_id = @id 
+            ORDER BY start_time_unix_ms DESC 
+            LIMIT @limit;
+            """;
+        cmd.Parameters.AddWithValue("@id", deviceId);
+        cmd.Parameters.AddWithValue("@limit", limit);
+
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            sessions.Add(new SweepSession
+            {
+                Id = reader.GetInt64(reader.GetOrdinal("id")),
+                DeviceId = reader.GetString(reader.GetOrdinal("device_id")),
+                StartTimeUnixMs = reader.GetInt64(reader.GetOrdinal("start_time_unix_ms")),
+                EndTimeUnixMs = reader.GetInt64(reader.GetOrdinal("end_time_unix_ms")),
+                Mode = reader.IsDBNull(reader.GetOrdinal("mode")) ? "" : reader.GetString(reader.GetOrdinal("mode")),
+                TargetRuns = reader.GetInt32(reader.GetOrdinal("target_runs")),
+                CompletedRuns = reader.GetInt32(reader.GetOrdinal("completed_runs"))
+            });
+        }
+        return sessions;
+    }
 
     // --- Signal Samples ---
 
@@ -311,6 +382,51 @@ public sealed class DatabaseService : IDatabaseService, IDisposable
             samples.Add(ReadSample(reader));
         }
         return samples;
+    }
+
+    public async Task<IReadOnlyList<ChannelStatistics>> GetChannelStatisticsAsync(
+        string deviceId, long fromUnixMs, long toUnixMs)
+    {
+        var conn = await GetConnectionAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT 
+                channel,
+                COUNT(*) as sample_count,
+                AVG(ss) as avg_ss, MIN(ss) as min_ss, MAX(ss) as max_ss,
+                AVG(snq) as avg_snq, MIN(snq) as min_snq, MAX(snq) as max_snq,
+                AVG(seq) as avg_seq, MIN(seq) as min_seq, MAX(seq) as max_seq
+            FROM signal_samples
+            WHERE device_id = @devId 
+              AND timestamp_unix_ms BETWEEN @from AND @to
+            GROUP BY channel
+            ORDER BY CAST(channel AS REAL);
+            """;
+            
+        cmd.Parameters.AddWithValue("@devId", deviceId);
+        cmd.Parameters.AddWithValue("@from", fromUnixMs);
+        cmd.Parameters.AddWithValue("@to", toUnixMs);
+
+        var stats = new List<ChannelStatistics>();
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            stats.Add(new ChannelStatistics
+            {
+                Channel = reader.GetString(0),
+                SampleCount = reader.GetInt32(1),
+                AvgSs = reader.IsDBNull(2) ? 0 : reader.GetDouble(2),
+                MinSs = reader.IsDBNull(3) ? 0 : reader.GetDouble(3),
+                MaxSs = reader.IsDBNull(4) ? 0 : reader.GetDouble(4),
+                AvgSnq = reader.IsDBNull(5) ? 0 : reader.GetDouble(5),
+                MinSnq = reader.IsDBNull(6) ? 0 : reader.GetDouble(6),
+                MaxSnq = reader.IsDBNull(7) ? 0 : reader.GetDouble(7),
+                AvgSeq = reader.IsDBNull(8) ? 0 : reader.GetDouble(8),
+                MinSeq = reader.IsDBNull(9) ? 0 : reader.GetDouble(9),
+                MaxSeq = reader.IsDBNull(10) ? 0 : reader.GetDouble(10)
+            });
+        }
+        return stats;
     }
 
     public async Task PurgeOldSamplesAsync(int retentionDays)

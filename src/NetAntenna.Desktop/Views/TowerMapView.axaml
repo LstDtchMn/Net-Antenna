@@ -28,7 +28,7 @@
                 <!-- Download button top-right -->
                 <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,0,12" Spacing="6">
                     <Button Content="⬇ Download FCC Data"
-                            Command="{Binding RequestDownloadCommand}"
+                            Command="{Binding DownloadFccDataCommand}"
                             IsEnabled="{Binding !IsUpdating}"
                             Padding="14,8" Background="#313244" Foreground="White" CornerRadius="6">
                         <Button.Styles>
@@ -39,138 +39,160 @@
                         </Button.Styles>
                     </Button>
 
-                    <!-- ⚠ Download size warning card -->
-                    <Border IsVisible="{Binding ShowDownloadConfirmation}"
-                            Background="#2A1800" BorderBrush="#E8864A" BorderThickness="1"
-                            CornerRadius="6" Padding="12,10">
-                        <StackPanel Spacing="8">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="⚠" FontSize="14" Foreground="#F38BA8" VerticalAlignment="Center"/>
-                                <TextBlock Text="Large Download" FontSize="13" FontWeight="Bold" Foreground="#FAB387"/>
-                            </StackPanel>
-                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#CDD6F4" MaxWidth="240">
-                                The FCC database is <Run FontWeight="Bold" Foreground="#F9E2AF">~1.6 GB</Run>. It only needs to be downloaded once. This may take several minutes depending on your connection.
-                            </TextBlock>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Content="✓ Yes, Download"
-                                        Command="{Binding DownloadFccDataCommand}"
-                                        Padding="12,6" FontSize="12"
-                                        Background="#A6E3A1" Foreground="#1E1E2E" FontWeight="SemiBold" CornerRadius="4"/>
-                                <Button Content="Cancel"
-                                        Command="{Binding CancelDownloadCommand}"
-                                        Padding="12,6" FontSize="12"
-                                        Background="#45475A" Foreground="#CDD6F4" CornerRadius="4"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-
                     <!-- Progress/status row -->
                     <TextBlock Text="{Binding FccDownloadProgress}"
                                IsVisible="{Binding FccDownloadProgress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                Foreground="#A6ADC8" FontSize="11" HorizontalAlignment="Right"/>
                 </StackPanel>
 
-                <!-- Row 1: Autocomplete address + manual coord save -->
-                <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto">
+                <!-- Row 1: Controls (Search & Map Options) -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="12" Margin="0,0,0,12">
+                    
+                    <!-- Top Row: Address Search and Manual Coordinates -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <!-- ADDRESS SEARCH with autocomplete overlay -->
+                        <Panel Grid.Column="0" Margin="0,0,12,0">
+                            <!-- Search input row -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Grid.Column="0"
+                                         x:Name="AddressBox"
+                                         Text="{Binding SearchAddress}"
+                                         Watermark="Start typing your address…"
+                                         Padding="12,8" FontSize="13"
+                                         Background="#11111B" Foreground="White"
+                                         CaretBrush="White"
+                                         BorderBrush="#45475A" BorderThickness="1"
+                                         CornerRadius="6,0,0,6"/>
+                                <Button Grid.Column="1"
+                                        Content="🔍 Find"
+                                        Command="{Binding SearchAddressCommand}"
+                                        IsEnabled="{Binding !IsSearchingAddress}"
+                                        Padding="16,8" FontSize="13"
+                                        Background="#00BCD4" Foreground="White" FontWeight="SemiBold"
+                                        CornerRadius="0,6,6,0">
+                                    <Button.Styles>
+                                        <Style Selector="Button:disabled">
+                                            <Setter Property="Content" Value="⏳"/>
+                                            <Setter Property="Background" Value="#313244"/>
+                                        </Style>
+                                    </Button.Styles>
+                                </Button>
+                            </Grid>
 
-                    <!-- ADDRESS SEARCH with autocomplete overlay -->
-                    <Panel Grid.Column="0" Margin="0,0,12,0">
-                        <!-- Search input row -->
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Grid.Column="0"
-                                     x:Name="AddressBox"
-                                     Text="{Binding SearchAddress}"
-                                     Watermark="Start typing your address…"
-                                     Padding="12,8" FontSize="13"
-                                     Background="#11111B" Foreground="White"
-                                     CaretBrush="White"
-                                     BorderBrush="#45475A" BorderThickness="1"
-                                     CornerRadius="6,0,0,6"/>
-                            <Button Grid.Column="1"
-                                    Content="🔍 Find"
-                                    Command="{Binding SearchAddressCommand}"
-                                    IsEnabled="{Binding !IsSearchingAddress}"
-                                    Padding="16,8" FontSize="13"
-                                    Background="#00BCD4" Foreground="White" FontWeight="SemiBold"
-                                    CornerRadius="0,6,6,0">
-                                <Button.Styles>
-                                    <Style Selector="Button:disabled">
-                                        <Setter Property="Content" Value="⏳"/>
-                                        <Setter Property="Background" Value="#313244"/>
-                                    </Style>
-                                </Button.Styles>
-                            </Button>
-                        </Grid>
+                            <!-- Autocomplete dropdown overlay -->
+                            <Border IsVisible="{Binding ShowSuggestions}"
+                                    Background="#2A2A3E"
+                                    BorderBrush="#585B70" BorderThickness="1"
+                                    CornerRadius="0,0,8,8"
+                                    BoxShadow="0 8 24 -4 #99000000"
+                                    Margin="0,40,0,0"
+                                    ZIndex="100"
+                                    MaxHeight="240">
+                                <ListBox ItemsSource="{Binding Suggestions}"
+                                         Background="Transparent"
+                                         SelectionMode="Single"
+                                         Padding="4">
+                                    <ListBox.Styles>
+                                        <Style Selector="ListBoxItem">
+                                            <Setter Property="Padding" Value="12,8"/>
+                                            <Setter Property="CornerRadius" Value="4"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                        </Style>
+                                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                                            <Setter Property="Background" Value="#313244"/>
+                                        </Style>
+                                    </ListBox.Styles>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="model:GeocodingSuggestion">
+                                            <Button Command="{Binding $parent[UserControl].((vm:TowerMapViewModel)DataContext).SelectSuggestionCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Left"
+                                                    Padding="0"
+                                                    Cursor="Hand">
+                                                <StackPanel Spacing="1">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               Foreground="#CDD6F4"
+                                                               FontSize="12"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxWidth="500"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
 
-                        <!-- Autocomplete dropdown overlay -->
-                        <Border IsVisible="{Binding ShowSuggestions}"
-                                Background="#2A2A3E"
-                                BorderBrush="#585B70" BorderThickness="1"
-                                CornerRadius="0,0,8,8"
-                                BoxShadow="0 8 24 -4 #99000000"
-                                Margin="0,40,48,0"
-                                ZIndex="100"
-                                MaxHeight="240">
-                            <ListBox ItemsSource="{Binding Suggestions}"
-                                     Background="Transparent"
-                                     SelectionMode="Single"
-                                     Padding="4">
-                                <ListBox.Styles>
-                                    <Style Selector="ListBoxItem">
-                                        <Setter Property="Padding" Value="12,8"/>
-                                        <Setter Property="CornerRadius" Value="4"/>
-                                        <Setter Property="Cursor" Value="Hand"/>
-                                    </Style>
-                                    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                                        <Setter Property="Background" Value="#313244"/>
-                                    </Style>
-                                </ListBox.Styles>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="model:GeocodingSuggestion">
-                                        <Button Command="{Binding $parent[UserControl].((vm:TowerMapViewModel)DataContext).SelectSuggestionCommand}"
-                                                CommandParameter="{Binding}"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Left"
-                                                Padding="0"
-                                                Cursor="Hand">
-                                            <StackPanel Spacing="1">
-                                                <TextBlock Text="{Binding DisplayName}"
-                                                           Foreground="#CDD6F4"
-                                                           FontSize="12"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           MaxWidth="500"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                            <!-- Loading indicator -->
+                            <TextBlock IsVisible="{Binding IsLoadingSuggestions}"
+                                       Text="🔍 Searching..."
+                                       Foreground="#6C7086" FontSize="11"
+                                       Margin="4,42,0,0"
+                                       ZIndex="99"/>
+                        </Panel>
+
+                        <!-- Manual lat/lng + Save -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="Lat:" Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBox Text="{Binding UserLat}" Width="80" Padding="8,6" FontSize="12"
+                                     Background="#11111B" Foreground="White" BorderBrush="#45475A" CornerRadius="4"/>
+                            <TextBlock Text="Lng:" Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBox Text="{Binding UserLng}" Width="90" Padding="8,6" FontSize="12"
+                                     Background="#11111B" Foreground="White" BorderBrush="#45475A" CornerRadius="4"/>
+                            <Button Content="💾 Save"
+                                    Command="{Binding SaveLocationCommand}"
+                                    Padding="12,6" FontSize="12"
+                                    Background="#313244" Foreground="White" CornerRadius="4"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Bottom Row: Map Controls -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- Group: Zoom In / Center / Zoom Out around User Location -->
+                        <Border Background="#313244" CornerRadius="6" ClipToBounds="True">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="➕"
+                                        Command="{Binding ZoomInToMeCommand}"
+                                        Padding="10,8" FontSize="11"
+                                        Background="Transparent" Foreground="#89DCEB" CornerRadius="6,0,0,6"
+                                        ToolTip.Tip="Zoom IN centered on your location"/>
+                                        
+                                <Button Content="🎯 To Me"
+                                        Command="{Binding ZoomToLocationCommand}"
+                                        Padding="10,8" FontSize="13"
+                                        Background="#45475A" Foreground="#89DCEB" CornerRadius="0"
+                                        ToolTip.Tip="Center map on your saved location"/>
+
+                                <Button Content="➖"
+                                        Command="{Binding ZoomOutFromMeCommand}"
+                                        Padding="10,8" FontSize="11"
+                                        Background="Transparent" Foreground="#89DCEB" CornerRadius="0,6,6,0"
+                                        ToolTip.Tip="Zoom OUT centered on your location"/>
+                            </StackPanel>
                         </Border>
 
-                        <!-- Loading indicator -->
-                        <TextBlock IsVisible="{Binding IsLoadingSuggestions}"
-                                   Text="🔍 Searching..."
-                                   Foreground="#6C7086" FontSize="11"
-                                   Margin="4,42,0,0"
-                                   ZIndex="99"/>
-                    </Panel>
-
-                    <!-- Manual lat/lng + Save -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Lat:" Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
-                        <TextBox Text="{Binding UserLat}" Width="80" Padding="8,6" FontSize="12"
-                                 Background="#11111B" Foreground="White" BorderBrush="#45475A" CornerRadius="4"/>
-                        <TextBlock Text="Lng:" Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
-                        <TextBox Text="{Binding UserLng}" Width="90" Padding="8,6" FontSize="12"
-                                 Background="#11111B" Foreground="White" BorderBrush="#45475A" CornerRadius="4"/>
-                        <Button Content="💾 Save"
-                                Command="{Binding SaveLocationCommand}"
-                                Padding="12,6" FontSize="12"
-                                Background="#313244" Foreground="White" CornerRadius="4"/>
+                        <!-- Radius Filter -->
+                        <ComboBox ItemsSource="{Binding RadiusOptions}"
+                                  SelectedItem="{Binding SelectedRadius}"
+                                  Padding="12,8" FontSize="13" MinWidth="180"
+                                  Background="#313244" Foreground="White" CornerRadius="6"
+                                  ToolTip.Tip="Filter map to only show towers within this range"/>
+                                
+                        <Button Content="🗺️ Reset View"
+                                Command="{Binding ResetMapCommand}"
+                                Padding="12,8" FontSize="13"
+                                Background="#313244" Foreground="#CDD6F4" CornerRadius="6"
+                                ToolTip.Tip="Zoom out to show the entire US map"/>
+                                
+                        <Button Content="🗑️ Clear Pins"
+                                Command="{Binding ClearTowersCommand}"
+                                Padding="12,8" FontSize="13"
+                                Background="#45475A" Foreground="#F38BA8" CornerRadius="6"
+                                ToolTip.Tip="Remove all tower pins from the map (data remains saved in database)"/>
                     </StackPanel>
-
-                </Grid>
+                </StackPanel>
             </Grid>
         </Border>
 

@@ -102,6 +102,11 @@
                         Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=SpectrumOverview}"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,10" CornerRadius="0"/>
 
+                <Button Content="☢  Active Sweeper"
+                        Command="{Binding NavigateToCommand}" CommandParameter="Sweeper"
+                        Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=Sweeper}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="16,10" CornerRadius="0"/>
+
                 <Button Content="🧭  Aiming Assistant"
                         Command="{Binding NavigateToCommand}" CommandParameter="AimingAssistant"
                         Background="{Binding SelectedNavItem, Converter={x:Static local:Converters.NavItemBackground}, ConverterParameter=AimingAssistant}"
