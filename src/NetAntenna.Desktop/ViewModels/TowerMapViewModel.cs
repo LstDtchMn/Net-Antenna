@@ -143,12 +143,21 @@ public partial class TowerMapViewModel : ViewModelBase
         if (IsUpdating) return;
         
         IsUpdating = true;
-        FccDownloadProgress = "Starting download...";
+        FccDownloadProgress = "Connecting to FCC...";
         try
         {
-            var progress = new Progress<int>(pct => 
+            var progress = new Progress<int>(pct =>
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    FccDownloadProgress = $"Downloading... {pct}%"));
+                    FccDownloadProgress = pct switch
+                    {
+                        < 42  => $"⬇ Downloading ZIP... {pct}%",
+                        < 50  => "📦 Decompressing...",
+                        < 66  => "🏢 Parsing facilities...",
+                        < 80  => "📋 Parsing applications...",
+                        < 92  => "📡 Parsing tower data...",
+                        < 100 => "💾 Saving to database...",
+                        _     => "✅ Done"
+                    }));
             
             await _fccService.DownloadAndIndexLmsDataAsync(progress);
             await LoadTowersAsync();

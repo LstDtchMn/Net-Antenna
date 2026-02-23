@@ -23,30 +23,59 @@ public class FccDataService : IFccDataService
     {
         progress?.Report(5);
 
-        // Download the single always-current LMS dump from the FCC
+        // Stream the large zip to a temp file so we get real download progress
+        // instead of blocking on ReadAsByteArrayAsync for the entire file
         using var response = await _httpClient.GetAsync(LmsDumpUrl, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
 
-        var bytes = await response.Content.ReadAsByteArrayAsync(ct);
-        progress?.Report(40);
+        var totalBytes = response.Content.Headers.ContentLength ?? 0L;
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await using (var responseStream = await response.Content.ReadAsStreamAsync(ct))
+            await using (var fileStream = File.Create(tempFile))
+            {
+                var buffer = new byte[81920];
+                long bytesRead = 0;
+                int read;
+                while ((read = await responseStream.ReadAsync(buffer, ct)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer.AsMemory(0, read), ct);
+                    bytesRead += read;
+                    if (totalBytes > 0)
+                        progress?.Report(5 + (int)(bytesRead * 35 / totalBytes)); // 5% → 40%
+                }
+            }
 
-        using var ms = new MemoryStream(bytes);
-        using var archive = new ZipArchive(ms, ZipArchiveMode.Read);
+            progress?.Report(42);
 
-        var facilityEntry   = FindEntry(archive, "facility.dat")          ?? throw new FileNotFoundException($"facility.dat not found. Files: {string.Join(", ", archive.Entries.Select(e => e.Name))}");
-        var appEntry        = FindEntry(archive, "application.dat")        ?? throw new FileNotFoundException("application.dat not found");
-        var engEntry        = FindEntry(archive, "tv_app_engineering.dat") ?? throw new FileNotFoundException("tv_app_engineering.dat not found");
+            using var fileMs = File.OpenRead(tempFile);
+            using var archive = new ZipArchive(fileMs, ZipArchiveMode.Read);
 
-        progress?.Report(50);
-        var facilities   = await ParseFacilitiesAsync(facilityEntry.Open(),  ct);
-        var applications = await ParseApplicationsAsync(appEntry.Open(),     ct);
-        var towers       = await ParseEngineeringDataAsync(engEntry.Open(),  facilities, applications, ct);
+            var facilityEntry = FindEntry(archive, "facility.dat")
+                ?? throw new FileNotFoundException($"facility.dat not found. Files: {string.Join(", ", archive.Entries.Select(e => e.Name))}");
+            var appEntry = FindEntry(archive, "application.dat")
+                ?? throw new FileNotFoundException("application.dat not found");
+            var engEntry = FindEntry(archive, "tv_app_engineering.dat")
+                ?? throw new FileNotFoundException("tv_app_engineering.dat not found");
 
-        progress?.Report(90);
-        await _db.ReplaceFccTowersAsync(towers);
-        await _db.SetSettingAsync("fcc_last_updated_unix_ms", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString());
+            progress?.Report(50);
+            var facilities   = await ParseFacilitiesAsync(facilityEntry.Open(),   ct);
+            progress?.Report(65);
+            var applications = await ParseApplicationsAsync(appEntry.Open(),      ct);
+            progress?.Report(80);
+            var towers       = await ParseEngineeringDataAsync(engEntry.Open(),   facilities, applications, ct);
 
-        progress?.Report(100);
+            progress?.Report(92);
+            await _db.ReplaceFccTowersAsync(towers);
+            await _db.SetSettingAsync("fcc_last_updated_unix_ms", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString());
+
+            progress?.Report(100);
+        }
+        finally
+        {
+            File.Delete(tempFile); // always clean up temp file
+        }
     }
 
     private static ZipArchiveEntry? FindEntry(ZipArchive archive, string name) =>
