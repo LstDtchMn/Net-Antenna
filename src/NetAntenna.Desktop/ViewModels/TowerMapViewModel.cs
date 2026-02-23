@@ -45,9 +45,12 @@ public partial class TowerMapViewModel : ViewModelBase
 
         var lastUpdate = await _fccService.GetLastUpdateDateAsync();
         LastUpdateText = lastUpdate?.ToString("g") ?? "Never";
-        
+        // Load user coordinates and last address label
         UserLat = await _db.GetSettingAsync("user_lat") ?? "39.8283";
         UserLng = await _db.GetSettingAsync("user_lng") ?? "-98.5795";
+        var savedAddress = await _db.GetSettingAsync("user_address");
+        if (!string.IsNullOrWhiteSpace(savedAddress))
+            SearchAddress = savedAddress;
     }
 
     // Called automatically by CommunityToolkit whenever SearchAddress changes
@@ -89,13 +92,21 @@ public partial class TowerMapViewModel : ViewModelBase
     [RelayCommand]
     private async Task SelectSuggestionAsync(GeocodingSuggestion suggestion)
     {
-        SearchAddress = suggestion.DisplayName;
         ShowSuggestions = false;
         Suggestions.Clear();
 
         UserLat = suggestion.Latitude.ToString("F4");
         UserLng = suggestion.Longitude.ToString("F4");
         await SaveLocationAsync();
+
+        // Update the search bar text AFTER saving so OnSearchAddressChanged
+        // debounce fires on a saved value — store address label separately
+        await _db.SetSettingAsync("user_address", suggestion.DisplayName);
+        SearchAddress = suggestion.DisplayName;
+
+        // Suppress the debounce suggestion re-trigger
+        _debounceCts?.Cancel();
+        ShowSuggestions = false;
     }
 
     [RelayCommand]
