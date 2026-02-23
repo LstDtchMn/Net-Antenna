@@ -6,6 +6,8 @@ using NetAntenna.Core.Services;
 
 namespace NetAntenna.Desktop.ViewModels;
 
+public enum MapLayer { Street, Terrain, Satellite }
+
 public partial class TowerMapViewModel : ViewModelBase
 {
     private readonly IFccDataService _fccService;
@@ -27,6 +29,10 @@ public partial class TowerMapViewModel : ViewModelBase
     [ObservableProperty] private ObservableCollection<GeocodingSuggestion> _suggestions = new();
     [ObservableProperty] private string _fccDownloadProgress = "";
     [ObservableProperty] private bool _showDownloadConfirmation;
+    [ObservableProperty] private MapLayer _selectedMapLayer = MapLayer.Street;
+
+    [RelayCommand]
+    private void SetMapLayer(MapLayer layer) => SelectedMapLayer = layer;
 
     private CancellationTokenSource? _debounceCts;
 

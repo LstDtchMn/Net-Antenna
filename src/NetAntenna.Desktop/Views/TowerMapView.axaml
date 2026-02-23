@@ -179,6 +179,49 @@
             <Border Background="#11111B" CornerRadius="8" ClipToBounds="True">
                 <mapsui:MapControl x:Name="TowerMap"/>
             </Border>
+
+            <!-- Layer switcher — overlaid bottom-left of map -->
+            <Border HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                    Margin="12,0,0,12"
+                    Background="#CC1E1E2E"
+                    BorderBrush="#45475A" BorderThickness="1"
+                    CornerRadius="20"
+                    Padding="4,3"
+                    ZIndex="10">
+                <StackPanel Orientation="Horizontal" Spacing="2">
+
+                    <!-- Street -->
+                    <Button Content="🗺 Street"
+                            Command="{Binding SetMapLayerCommand}"
+                            CommandParameter="{x:Static vm:MapLayer.Street}"
+                            Padding="10,5" FontSize="12" CornerRadius="16"
+                            Foreground="{Binding SelectedMapLayer,
+                                Converter={x:Static vm:MapLayerConverters.StreetForeground}}"
+                            Background="{Binding SelectedMapLayer,
+                                Converter={x:Static vm:MapLayerConverters.StreetBackground}}"/>
+
+                    <!-- Terrain -->
+                    <Button Content="⛰ Terrain"
+                            Command="{Binding SetMapLayerCommand}"
+                            CommandParameter="{x:Static vm:MapLayer.Terrain}"
+                            Padding="10,5" FontSize="12" CornerRadius="16"
+                            Foreground="{Binding SelectedMapLayer,
+                                Converter={x:Static vm:MapLayerConverters.TerrainForeground}}"
+                            Background="{Binding SelectedMapLayer,
+                                Converter={x:Static vm:MapLayerConverters.TerrainBackground}}"/>
+
+                    <!-- Satellite -->
+                    <Button Content="🛰 Satellite"
+                            Command="{Binding SetMapLayerCommand}"
+                            CommandParameter="{x:Static vm:MapLayer.Satellite}"
+                            Padding="10,5" FontSize="12" CornerRadius="16"
+                            Foreground="{Binding SelectedMapLayer,
+                                Converter={x:Static vm:MapLayerConverters.SatelliteForeground}}"
+                            Background="{Binding SelectedMapLayer,
+                                Converter={x:Static vm:MapLayerConverters.SatelliteBackground}}"/>
+
+                </StackPanel>
+            </Border>
         </Panel>
 
     </Grid>

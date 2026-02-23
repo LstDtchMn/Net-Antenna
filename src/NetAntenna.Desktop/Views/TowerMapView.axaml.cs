@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using BruTile.Predefined;
 using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Layers;
@@ -6,6 +7,7 @@ using Mapsui.Nts;
 using Mapsui.Projections;
 using Mapsui.Styles;
 using Mapsui.Tiling;
+using Mapsui.Tiling.Layers;
 using Mapsui.Widgets.ScaleBar;
 using NetAntenna.Desktop.ViewModels;
 using System.Collections.Specialized;
@@ -17,12 +19,14 @@ namespace NetAntenna.Desktop.Views;
 public partial class TowerMapView : UserControl
 {
     private readonly MemoryLayer _towerLayer;
+    private TileLayer? _baseLayer;
 
     public TowerMapView()
     {
         InitializeComponent();
 
-        TowerMap.Map?.Layers.Add(OpenStreetMap.CreateTileLayer());
+        _baseLayer = OpenStreetMap.CreateTileLayer();
+        TowerMap.Map?.Layers.Add(_baseLayer);
         TowerMap.Map?.Widgets.Add(new ScaleBarWidget(TowerMap.Map) { TextAlignment = Mapsui.Widgets.Alignment.Center });
 
         _towerLayer = new MemoryLayer { Name = "Towers" };
@@ -48,11 +52,38 @@ public partial class TowerMapView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (DataContext is TowerMapViewModel vm && 
-           (e.PropertyName == nameof(TowerMapViewModel.UserLat) || e.PropertyName == nameof(TowerMapViewModel.UserLng)))
+        if (DataContext is TowerMapViewModel vm)
         {
-            CenterMap(vm.UserLat, vm.UserLng);
+            if (e.PropertyName == nameof(TowerMapViewModel.UserLat) ||
+                e.PropertyName == nameof(TowerMapViewModel.UserLng))
+            {
+                CenterMap(vm.UserLat, vm.UserLng);
+            }
+            else if (e.PropertyName == nameof(TowerMapViewModel.SelectedMapLayer))
+            {
+                SwitchBaseLayer(vm.SelectedMapLayer);
+            }
         }
+    }
+
+    private void SwitchBaseLayer(MapLayer layer)
+    {
+        if (TowerMap.Map is null) return;
+
+        // Remove the current base layer
+        if (_baseLayer is not null)
+            TowerMap.Map.Layers.Remove(_baseLayer);
+
+        _baseLayer = layer switch
+        {
+            MapLayer.Terrain   => new TileLayer(KnownTileSources.Create(KnownTileSource.EsriWorldTopo))  { Name = "Base" },
+            MapLayer.Satellite => new TileLayer(KnownTileSources.Create(KnownTileSource.BingAerial)) { Name = "Base" },
+            _                  => OpenStreetMap.CreateTileLayer(),
+        };
+
+        // Insert at index 0 so towers remain on top
+        TowerMap.Map.Layers.Insert(0, _baseLayer);
+        TowerMap.Refresh();
     }
 
     private void CenterMap(string latStr, string lngStr)
