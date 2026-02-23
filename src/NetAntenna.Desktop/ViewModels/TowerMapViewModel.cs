@@ -26,6 +26,7 @@ public partial class TowerMapViewModel : ViewModelBase
     [ObservableProperty] private bool _showSuggestions;
     [ObservableProperty] private ObservableCollection<GeocodingSuggestion> _suggestions = new();
     [ObservableProperty] private string _fccDownloadProgress = "";
+    [ObservableProperty] private bool _showDownloadConfirmation;
 
     private CancellationTokenSource? _debounceCts;
 
@@ -149,9 +150,23 @@ public partial class TowerMapViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void RequestDownload()
+    {
+        if (IsUpdating) return;
+        ShowDownloadConfirmation = true;
+    }
+
+    [RelayCommand]
+    private void CancelDownload()
+    {
+        ShowDownloadConfirmation = false;
+    }
+
+    [RelayCommand]
     private async Task DownloadFccDataAsync()
     {
         if (IsUpdating) return;
+        ShowDownloadConfirmation = false;
         
         IsUpdating = true;
         FccDownloadProgress = "Connecting to FCC...";

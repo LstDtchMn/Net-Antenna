@@ -26,9 +26,9 @@
                 </StackPanel>
 
                 <!-- Download button top-right -->
-                <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,0,12">
+                <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,0,12" Spacing="6">
                     <Button Content="⬇ Download FCC Data"
-                            Command="{Binding DownloadFccDataCommand}"
+                            Command="{Binding RequestDownloadCommand}"
                             IsEnabled="{Binding !IsUpdating}"
                             Padding="14,8" Background="#313244" Foreground="White" CornerRadius="6">
                         <Button.Styles>
@@ -38,10 +38,36 @@
                             </Style>
                         </Button.Styles>
                     </Button>
-                    <!-- Progress/status row below the button -->
+
+                    <!-- ⚠ Download size warning card -->
+                    <Border IsVisible="{Binding ShowDownloadConfirmation}"
+                            Background="#2A1800" BorderBrush="#E8864A" BorderThickness="1"
+                            CornerRadius="6" Padding="12,10">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="⚠" FontSize="14" Foreground="#F38BA8" VerticalAlignment="Center"/>
+                                <TextBlock Text="Large Download" FontSize="13" FontWeight="Bold" Foreground="#FAB387"/>
+                            </StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#CDD6F4" MaxWidth="240">
+                                The FCC database is <Run FontWeight="Bold" Foreground="#F9E2AF">~1.6 GB</Run>. It only needs to be downloaded once. This may take several minutes depending on your connection.
+                            </TextBlock>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="✓ Yes, Download"
+                                        Command="{Binding DownloadFccDataCommand}"
+                                        Padding="12,6" FontSize="12"
+                                        Background="#A6E3A1" Foreground="#1E1E2E" FontWeight="SemiBold" CornerRadius="4"/>
+                                <Button Content="Cancel"
+                                        Command="{Binding CancelDownloadCommand}"
+                                        Padding="12,6" FontSize="12"
+                                        Background="#45475A" Foreground="#CDD6F4" CornerRadius="4"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Progress/status row -->
                     <TextBlock Text="{Binding FccDownloadProgress}"
                                IsVisible="{Binding FccDownloadProgress, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                               Foreground="#A6ADC8" FontSize="11" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                               Foreground="#A6ADC8" FontSize="11" HorizontalAlignment="Right"/>
                 </StackPanel>
 
                 <!-- Row 1: Autocomplete address + manual coord save -->
